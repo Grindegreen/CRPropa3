@@ -22,6 +22,7 @@ public:
 	PhotonField() {
 		this->fieldName = "AbstractPhotonField";
 		this->isRedshiftDependent = false;
+		this->isTimeDependent = false;
 	}
 
 	/**
@@ -29,6 +30,7 @@ public:
 	 multiply with (1+z^3) for physical number density.
 	 @param ePhoton		photon energy [J]
 	 @param z			redshift (if redshift dependent, default = 0.)
+	 @param t			time (if time dependent, default = 0.)
 	 */
 	virtual double getPhotonDensity(double ePhoton, double z = 0.) const = 0;
 	virtual double getMinimumPhotonEnergy(double z) const = 0;
@@ -50,6 +52,15 @@ public:
 		return this->isRedshiftDependent;
 	}
 
+	bool hasTimeDependence() const {
+		return this->isTimeDependent;
+	}
+
+	virtual double getTimeScaling(double t) const {
+		return 1.;
+	};
+
+
 	void setFieldName(std::string fieldName) {
 		this->fieldName = fieldName;
 	}
@@ -57,6 +68,7 @@ public:
 protected:
 	std::string fieldName;
 	bool isRedshiftDependent;
+	bool isTimeDependent;
 };
 
 /**
@@ -70,7 +82,22 @@ protected:
  */
 class TabularPhotonField: public PhotonField {
 public:
-	TabularPhotonField(const std::string fieldName, const bool isRedshiftDependent = true);
+	TabularPhotonField(const std::string fieldName, const bool isRedshiftDependent = true, const bool isTimeDependent = false) {
+		this->fieldName = fieldName;
+		this->isRedshiftDependent = isRedshiftDependent;
+		this->isTimeDependent = isTimeDependent;
+
+		readPhotonEnergy(getDataPath("") + "Scaling/" + this->fieldName + "_photonEnergy.txt");
+		readPhotonDensity(getDataPath("") + "Scaling/" + this->fieldName + "_photonDensity.txt");
+		if (this->isRedshiftDependent)
+			readRedshift(getDataPath("") + "Scaling/" + this->fieldName + "_redshift.txt");
+		if (this->isTimeDependent)
+			readTimeScaling(getDataPath("") + "Scaling/" + this->fieldName + "_time.txt");
+		checkInputData();
+
+		if (this->isRedshiftDependent)
+			initRedshiftScaling();
+	}
 
 	double getPhotonDensity(double ePhoton, double z = 0.) const;
 	double getRedshiftScaling(double z) const;
@@ -81,6 +108,7 @@ protected:
 	void readPhotonEnergy(std::string filePath);
 	void readPhotonDensity(std::string filePath);
 	void readRedshift(std::string filePath);
+	void readTimeScaling(std::string filePath);
 	void initRedshiftScaling();
 	void checkInputData() const;
 
@@ -88,6 +116,8 @@ protected:
 	std::vector<double> photonDensity;
 	std::vector<double> redshifts;
 	std::vector<double> redshiftScalings;
+	std::vector<double> times;
+	std::vector<double> timeScalings;
 };
 
 /**
