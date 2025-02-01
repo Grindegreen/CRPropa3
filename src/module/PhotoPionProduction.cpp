@@ -123,7 +123,7 @@ void PhotoPionProduction::initRate(std::string filename) {
 	infile.close();
 }
 
-double PhotoPionProduction::nucleonMFP(double gamma, double z, bool onProton) const {
+double PhotoPionProduction::nucleonMFP(double gamma, double z, bool onProton, double time) const {
 	const std::vector<double> &tabRate = (onProton)? tabProtonRate : tabNeutronRate;
 
 	// scale nucleus energy instead of background photon energy
@@ -131,12 +131,13 @@ double PhotoPionProduction::nucleonMFP(double gamma, double z, bool onProton) co
 	if (gamma < tabLorentz.front() or (gamma > tabLorentz.back()))
 		return std::numeric_limits<double>::max();
 
-	double rate;
+	double rate = 1.;
 	if (haveRedshiftDependence)
-		rate = interpolate2d(z, gamma, tabRedshifts, tabLorentz, tabRate);
+		rate *= interpolate2d(z, gamma, tabRedshifts, tabLorentz, tabRate);
 	else
-		rate = interpolate(gamma, tabLorentz, tabRate) * photonField->getRedshiftScaling(z);
-
+		rate *= interpolate(gamma, tabLorentz, tabRate) * photonField->getRedshiftScaling(z);
+	// time scaling
+	rate *= photonField->getTimeScaling(time);
 	// cosmological scaling
 	rate *= pow_integer<2>(1 + z);
 
@@ -154,6 +155,7 @@ double PhotoPionProduction::nucleiModification(int A, int X) const {
 void PhotoPionProduction::process(Candidate *candidate) const {
 	double step = candidate->getCurrentStep();
 	double z = candidate->getRedshift();
+	double time = candidate->getTime();
 	// the loop is processed at least once for limiting the next step
 	do {
 		// check if nucleus
@@ -175,13 +177,13 @@ void PhotoPionProduction::process(Candidate *candidate) const {
 
 		// check for interaction on protons
 		if (Z > 0) {
-			meanFreePath = nucleonMFP(gamma, z, true) / nucleiModification(A, Z);
+			meanFreePath = nucleonMFP(gamma, z, true, time) / nucleiModification(A, Z);
 			randDistance = -log(random.rand()) * meanFreePath;
 			totalRate += 1. / meanFreePath;
 		}
 		// check for interaction on neutrons
 		if (N > 0) {
-			meanFreePath = nucleonMFP(gamma, z, false) / nucleiModification(A, N);
+			meanFreePath = nucleonMFP(gamma, z, false, time) / nucleiModification(A, N);
 			totalRate += 1. / meanFreePath;
 			double d = -log(random.rand()) * meanFreePath;
 			if (d < randDistance) {
@@ -332,16 +334,16 @@ void PhotoPionProduction::performInteraction(Candidate *candidate, bool onProton
 	}
 }
 
-double PhotoPionProduction::lossLength(int id, double gamma, double z) {
+double PhotoPionProduction::lossLength(int id, double gamma, double z, double time) {
 	int A = massNumber(id);
 	int Z = chargeNumber(id);
 	int N = A - Z;
 
 	double lossRate = 0;
 	if (Z > 0)
-		lossRate += 1 / nucleonMFP(gamma, z, true) * nucleiModification(A, Z);
+		lossRate += 1 / nucleonMFP(gamma, z, true, time) * nucleiModification(A, Z);
 	if (N > 0)
-		lossRate += 1 / nucleonMFP(gamma, z, false) * nucleiModification(A, N);
+		lossRate += 1 / nucleonMFP(gamma, z, false, time) * nucleiModification(A, N);
 
 	// approximate the relative energy loss
 	// - nucleons keep the fraction of mass to delta-resonance mass

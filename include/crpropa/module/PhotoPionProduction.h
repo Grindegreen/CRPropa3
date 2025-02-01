@@ -151,7 +151,7 @@ public:
 	 * @param z 		redshift
 	 * @param onProton 	true for protons, false for neutrons
 	 */
-	double nucleonMFP(double gamma, double z, bool onProton) const;
+	double nucleonMFP(double gamma, double z, bool onProton, double time = 0.) const;
 
 	/** scaling factor for mean free path of the nucleus (converting the MFP of a single nucleon)
 	 * 
@@ -169,7 +169,7 @@ public:
 	 @param gamma	Lorentz factor of particle
 	 @param z		redshift
 	 */
-	double lossLength(int id, double gamma, double z = 0);
+	double lossLength(int id, double gamma, double z = 0, double time=0);
 
 	/**
 	 Direct SOPHIA interface.
