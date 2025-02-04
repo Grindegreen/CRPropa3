@@ -538,6 +538,33 @@ endif(ENABLE_PYTHON AND Python_FOUND)
 
 
 # ----------------------------------------------------------------------------
+# Pip install
+# ----------------------------------------------------------------------------
+
+option(BUILD_PYTHON_MODULE "Build Python module" ON)
+
+if (BUILD_PYTHON_MODULE)
+    set(PYTHON_MODULE_NAME crpropa_py)  # Give the Python module a unique name
+
+    find_package(Python REQUIRED COMPONENTS Interpreter Development NumPy)
+    find_package(SWIG REQUIRED)
+    include(${SWIG_USE_FILE})
+    
+    set(CMAKE_SWIG_FLAGS -c++)
+
+    set_source_files_properties(
+    ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/crpropa_py.dir/crpropaPYTHON_wrap.c
+    PROPERTIES LANGUAGE CXX
+    )
+    
+    swig_add_library(${PYTHON_MODULE_NAME}
+        LANGUAGE python
+        SOURCES python/crpropa.i)  # Adjust with the correct SWIG file
+    
+    swig_link_libraries(${PYTHON_MODULE_NAME} ${PYTHON_LIBRARIES} ${NUMPY_LIBRARIES})
+    endif()
+
+# ----------------------------------------------------------------------------
 # Install
 # ----------------------------------------------------------------------------
 add_definitions(-DCRPROPA_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}")
