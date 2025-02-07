@@ -7,6 +7,7 @@
 #include <fstream>
 #include <limits>
 #include <stdexcept>
+#include "ElectronPairProduction.h"
 
 namespace crpropa {
 
@@ -83,7 +84,7 @@ void ElectronPairProduction::initSpectrum(std::string filename) {
 	infile.close();
 }
 
-double ElectronPairProduction::lossLength(int id, double lf, double z) const {
+double ElectronPairProduction::lossLength(int id, double lf, double z, double time) const {
 	double Z = chargeNumber(id);
 	if (Z == 0)
 		return std::numeric_limits<double>::max(); // no pair production on uncharged particles
@@ -92,7 +93,7 @@ double ElectronPairProduction::lossLength(int id, double lf, double z) const {
 	if (lf < tabLorentzFactor.front())
 		return std::numeric_limits<double>::max(); // below energy threshold
 
-	double rate;
+	double rate = photonField->getTimeScaling(time); // time scaling
 	if (lf < tabLorentzFactor.back())
 		rate = interpolate(lf, tabLorentzFactor, tabLossRate); // interpolation
 	else
@@ -110,7 +111,8 @@ void ElectronPairProduction::process(Candidate *c) const {
 
 	double lf = c->current.getLorentzFactor();
 	double z = c->getRedshift();
-	double losslen = lossLength(id, lf, z);  // energy loss length
+	double time = c->getTime();
+	double losslen = lossLength(id, lf, z, time);  // energy loss length
 	if (losslen >= std::numeric_limits<double>::max())
 		return;
 

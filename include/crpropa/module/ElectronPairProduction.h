@@ -67,6 +67,7 @@ public:
 	 @param	id		PDG particle ID
 	 @param lf		Lorentz factor
 	 @param z		redshift
+	 @param t		time
 
 	 The energy loss length is tabulated for protons against CMB and IRB.
 	 Modification for nuclei and cosmological evolution of the photon background
@@ -74,7 +75,7 @@ public:
 	 beta_A,Z(E) = Z^2 / A * beta_p(E/A)
 	 beta(E,z) = (1+z)^3 beta((1+z)E).
 	 */
-	double lossLength(int id, double lf, double z=0) const;
+	double lossLength(int id, double lf, double z=0, double t=0) const;
 	
 };
 /** @}*/
