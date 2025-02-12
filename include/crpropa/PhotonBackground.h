@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <string>
+#include <fstream>
 
 namespace crpropa {
 /**
@@ -82,22 +83,7 @@ protected:
  */
 class TabularPhotonField: public PhotonField {
 public:
-	TabularPhotonField(const std::string fieldName, const bool isRedshiftDependent = true, const bool isTimeDependent = false) {
-		this->fieldName = fieldName;
-		this->isRedshiftDependent = isRedshiftDependent;
-		this->isTimeDependent = isTimeDependent;
-
-		readPhotonEnergy(getDataPath("") + "Scaling/" + this->fieldName + "_photonEnergy.txt");
-		readPhotonDensity(getDataPath("") + "Scaling/" + this->fieldName + "_photonDensity.txt");
-		if (this->isRedshiftDependent)
-			readRedshift(getDataPath("") + "Scaling/" + this->fieldName + "_redshift.txt");
-		if (this->isTimeDependent)
-			readTimeScaling(getDataPath("") + "Scaling/" + this->fieldName + "_time.txt");
-		checkInputData();
-
-		if (this->isRedshiftDependent)
-			initRedshiftScaling();
-	}
+	TabularPhotonField(const std::string fieldName, const bool isRedshiftDependent = true, const bool isTimeDependent = false);
 
 	double getPhotonDensity(double ePhoton, double z = 0.) const;
 	double getRedshiftScaling(double z) const;

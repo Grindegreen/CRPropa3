@@ -7,7 +7,6 @@
 #include <fstream>
 #include <limits>
 #include <stdexcept>
-#include "ElectronPairProduction.h"
 
 namespace crpropa {
 

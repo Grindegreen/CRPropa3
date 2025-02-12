@@ -6,19 +6,24 @@
 
 #include <fstream>
 #include <stdexcept>
+#include <iostream>
+#include <sstream>
 #include <limits>
 #include <cmath>
 
 namespace crpropa {
 
-TabularPhotonField::TabularPhotonField(std::string fieldName, bool isRedshiftDependent) {
+TabularPhotonField::TabularPhotonField(std::string fieldName, bool isRedshiftDependent, bool isTimeDependent) {
 	this->fieldName = fieldName;
 	this->isRedshiftDependent = isRedshiftDependent;
+	this->isTimeDependent = isTimeDependent;
 
 	readPhotonEnergy(getDataPath("") + "Scaling/" + this->fieldName + "_photonEnergy.txt");
 	readPhotonDensity(getDataPath("") + "Scaling/" + this->fieldName + "_photonDensity.txt");
 	if (this->isRedshiftDependent)
 		readRedshift(getDataPath("") + "Scaling/" + this->fieldName + "_redshift.txt");
+	if(this->isTimeDependent)
+		readTimeScaling(getDataPath("") + "Scaling/" + this->fieldName + "_time.txt");
 
 	checkInputData();
 
@@ -122,6 +127,25 @@ void TabularPhotonField::initRedshiftScaling() {
 		}
 		this->redshiftScalings.push_back(n / n0);
 	}
+}
+
+void TabularPhotonField::readTimeScaling(std::string filePath) {
+	std::ifstream infile(filePath.c_str());
+	if (!infile.good())
+		throw std::runtime_error("TabularPhotonField::readTimeScaling: could not open " + filePath);
+
+	std::string line;
+	while (std::getline(infile, line)) {
+		std::stringstream stream(line);
+		double time;
+		double timeScaling;
+		if ((line.size() > 0) & (line[0] != '#') ) {
+			stream >> time >> timeScaling;
+			this->times.push_back(time);
+			this->timeScalings.push_back(timeScaling);
+		}
+	}
+	infile.close();
 }
 
 void TabularPhotonField::checkInputData() const {
