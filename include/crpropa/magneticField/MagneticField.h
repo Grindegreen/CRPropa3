@@ -29,6 +29,9 @@ public:
 	virtual Vector3d getField(const Vector3d &position, double z) const {
 		return getField(position);
 	};
+	virtual Vector3d getField(const Vector3d &position, double z, double t) const {
+		return getField(position, z);
+	};
 };
 
 /**
@@ -82,7 +85,7 @@ class MagneticFieldList: public MagneticField {
 	std::vector<ref_ptr<MagneticField> > fields;
 public:
 	void addField(ref_ptr<MagneticField> field);
-	Vector3d getField(const Vector3d &position) const;
+	Vector3d getField(const Vector3d &position, double z = 0, double t = 0) const;
 };
 
 /**

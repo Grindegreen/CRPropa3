@@ -61,10 +61,11 @@ void MagneticFieldList::addField(ref_ptr<MagneticField> field) {
 	fields.push_back(field);
 }
 
-Vector3d MagneticFieldList::getField(const Vector3d &position) const {
+Vector3d MagneticFieldList::getField(const Vector3d &position, double z,
+		double t) const {
 	Vector3d b;
 	for (int i = 0; i < fields.size(); i++)
-		b += fields[i]->getField(position);
+		b += fields[i]->getField(position, z, t);
 	return b;
 }
 
