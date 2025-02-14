@@ -14,6 +14,7 @@ setup(
     packages=["crpropa"],
     include_package_data=True,
     python_requires=">=3.7",
-    # Pass the NumPy include directory (using the name expected by CMake)
-    cmake_args=[f"-DPython_NumPy_INCLUDE_DIRS={numpy_include_dir}", "-DPython_FIND_NUMPY=ON", "-DDOWNLOAD_DATA=OFF",],
+    cmake_args=[
+    "-DDOWNLOAD_DATA=OFF"
+    ],
 )

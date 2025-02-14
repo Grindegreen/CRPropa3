@@ -1,0 +1,14 @@
+Metadata-Version: 2.2
+Name: crpropa
+Version: 3.2.0
+Summary: CRPropa: A Monte Carlo simulation framework for high-energy cosmic ray propagation
+Home-page: https://github.com/CRPropa/CRPropa3
+Author: CRPropa Collaboration
+Requires-Python: >=3.7
+License-File: LICENSE.txt
+Requires-Dist: numpy
+Dynamic: author
+Dynamic: home-page
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
