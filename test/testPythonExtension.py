@@ -81,16 +81,20 @@ class testCrossLanguagePolymorphism(unittest.TestCase):
             def getField(self, position, z):
                 return crp.Vector3d(self.val)
 
+            def getField(self, position, z, t):
+                return crp.Vector3d(self.val)
+
         field = CustomMagneticField(crp.gauss)
         propBP = crp.PropagationBP(field, 1e-4, 1*crp.Mpc, 1*crp.Mpc)
         propCK = crp.PropagationCK(field, 1e-4, 1*crp.Mpc, 1*crp.Mpc)
         propSDE = crp.DiffusionSDE(field)
         pos = crp.Vector3d(-1, 0, 0)
         z = 0
-        fieldAtPos = field.getField(pos, z)
-        self.assertEqual(fieldAtPos, propBP.getFieldAtPosition(pos, z))
-        self.assertEqual(fieldAtPos, propCK.getFieldAtPosition(pos, z))
-        self.assertEqual(fieldAtPos, propSDE.getMagneticFieldAtPosition(pos, z))
+        t = 0
+        fieldAtPos = field.getField(pos, z, t)
+        self.assertEqual(fieldAtPos, propBP.getFieldAtPosition(pos, z, t))
+        self.assertEqual(fieldAtPos, propCK.getFieldAtPosition(pos, z, t))
+        self.assertEqual(fieldAtPos, propSDE.getMagneticFieldAtPosition(pos, z, t))
 
     def testCustomAdvectionField(self):
         class CustomAdvectionField(crp.AdvectionField):
