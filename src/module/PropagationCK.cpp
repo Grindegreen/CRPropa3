@@ -26,7 +26,7 @@ const double cash_karp_bs[] = {
 };
 
 void PropagationCK::tryStep(const Y &y, Y &out, Y &error, double h,
-		ParticleState &particle, double z) const {
+		ParticleState &particle, double z, double t) const {
 	std::vector<Y> k;
 	k.reserve(6);
 
@@ -41,19 +41,19 @@ void PropagationCK::tryStep(const Y &y, Y &out, Y &error, double h,
 			y_n += k[j] * a[i * 6 + j] * h;
 
 		// update k_i
-		k[i] = dYdt(y_n, particle, z);
+		k[i] = dYdt(y_n, particle, z, t);
 
 		out += k[i] * b[i] * h;
 		error += k[i] * (b[i] - bs[i]) * h;
 	}
 }
 
-PropagationCK::Y PropagationCK::dYdt(const Y &y, ParticleState &p, double z) const {
+PropagationCK::Y PropagationCK::dYdt(const Y &y, ParticleState &p, double z, double t) const {
 	// normalize direction vector to prevent numerical losses
 	Vector3d velocity = y.u.getUnitVector() * c_light;
 	
 	// get B field at particle position
-	Vector3d B = getFieldAtPosition(y.x, z);
+	Vector3d B = getFieldAtPosition(y.x, z, t);
 
 	// Lorentz force: du/dt = q*c/E * (v x B)
 	Vector3d dudt = p.getCharge() * c_light / p.getEnergy() * velocity.cross(B);
@@ -94,12 +94,13 @@ void PropagationCK::process(Candidate *candidate) const {
 	Y yOut, yErr;
 	double newStep = step;
 	double z = candidate->getRedshift();
+	double t = candidate->getTime();
 
 
 	// if minStep is the same as maxStep the adaptive algorithm with its error
 	// estimation is not needed and the computation time can be saved:
 	if (minStep == maxStep){
-		tryStep(yIn, yOut, yErr, step / c_light, current, z);
+		tryStep(yIn, yOut, yErr, step / c_light, current, z, t);
 	} else {
 		step = clip(candidate->getNextStep(), minStep, maxStep);
 		newStep = step;
@@ -107,7 +108,7 @@ void PropagationCK::process(Candidate *candidate) const {
 
 		// try performing step until the target error (tolerance) or the minimum/maximum step size has been reached
 		while (true) {
-			tryStep(yIn, yOut, yErr, step / c_light, current, z);
+			tryStep(yIn, yOut, yErr, step / c_light, current, z, t);
 			r = yErr.u.getR() / tolerance;  // ratio of absolute direction error and tolerance
 			if (r > 1) {  // large direction error relative to tolerance, try to decrease step size
 				if (step == minStep)  // already minimum step size
@@ -143,13 +144,13 @@ ref_ptr<MagneticField> PropagationCK::getField() const {
 	return field;
 }
 
-Vector3d PropagationCK::getFieldAtPosition(Vector3d pos, double z) const {
+Vector3d PropagationCK::getFieldAtPosition(Vector3d pos, double z, double t) const {
 	Vector3d B(0, 0, 0);
 	try {
 		// check if field is valid and use the field vector at the
 		// position pos with the redshift z
 		if (field.valid())
-			B = field->getField(pos, z);
+			B = field->getField(pos, z, t);
 	} catch (std::exception &e) {
 		KISS_LOG_ERROR 	<< "PropagationCK: Exception in PropagationCK::getFieldAtPosition.\n"
 				<< e.what();

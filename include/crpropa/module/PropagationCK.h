@@ -71,10 +71,10 @@ public:
 
 	// derivative of phase point, dY/dt = d/dt(x, u) = (v, du/dt)
 	// du/dt = q*c^2/E * (u x B)
-	Y dYdt(const Y &y, ParticleState &p, double z) const;
+	Y dYdt(const Y &y, ParticleState &p, double z, double t) const;
 
-	void tryStep(const Y &y, Y &out, Y &error, double t,
-			ParticleState &p, double z) const;
+	void tryStep(const Y &y, Y &out, Y &error, double h,
+			ParticleState &p, double z, double t) const;
 
 	void setField(ref_ptr<MagneticField> field);
 	void setTolerance(double tolerance);
@@ -87,8 +87,9 @@ public:
 	/** get magnetic field vector at current candidate position
 	 * @param pos   current position of the candidate
 	 * @param z	 current redshift is needed to calculate the magnetic field
+	 * @param t	 current time is needed to calculate the magnetic field
 	 * @return	  magnetic field vector at the position pos */
-	Vector3d getFieldAtPosition(Vector3d pos, double z) const;
+	Vector3d getFieldAtPosition(Vector3d pos, double z, double t) const;
 
 	double getTolerance() const;
 	double getMinimumStep() const;
