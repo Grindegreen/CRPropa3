@@ -233,7 +233,7 @@ void PhotoPionProduction::performInteraction(Candidate *candidate, bool onProton
 	int outPartID[2000];
 	int nParticles;
 
-#pragma omp critical
+#pragma omp critical(SophiaEvent)
 	{
 		sophiaevent_(nature, Ein, eps, outputEnergy, outPartID, nParticles);
 	}
