@@ -106,7 +106,7 @@ void DiffusionSDE::process(Candidate *candidate) const {
 	do {
 		Vector3d PosOut = Vector3d(0.);
 		Vector3d PosErr = Vector3d(0.);
-	  	tryStep(PosIn, PosOut, PosErr, z, propTime);
+	  	tryStep(PosIn, PosOut, PosErr, z, propTime, time);
 	    // calculate the relative position error r and the next time step h
 	  	r = PosErr.getR() / tolerance;
 	  	propTime *= 0.5;
@@ -122,7 +122,7 @@ void DiffusionSDE::process(Candidate *candidate) const {
 	Vector3d PosOut = Vector3d(0.);
 	Vector3d PosErr = Vector3d(0.);
 	for (size_t j=0; j<stepNumber; j++) {
-		tryStep(Start, PosOut, PosErr, z, allowedTime);
+		tryStep(Start, PosOut, PosErr, z, allowedTime, time);
 		Start = PosOut;
 	}
 
@@ -230,7 +230,7 @@ void DiffusionSDE::process(Candidate *candidate) const {
 }
 
 
-void DiffusionSDE::tryStep(const Vector3d &PosIn, Vector3d &POut, Vector3d &PosErr,double z, double propStep) const {
+void DiffusionSDE::tryStep(const Vector3d &PosIn, Vector3d &POut, Vector3d &PosErr,double z, double propStep, double t) const {
 
 	Vector3d k[] = {Vector3d(0.),Vector3d(0.),Vector3d(0.),Vector3d(0.),Vector3d(0.),Vector3d(0.)};
 	POut = PosIn;
@@ -242,7 +242,7 @@ void DiffusionSDE::tryStep(const Vector3d &PosIn, Vector3d &POut, Vector3d &PosE
 		  y_n += k[j] * a[i * 6 + j] * propStep;
 
 		// update k_i = direction of the regular magnetic mean field
-		Vector3d BField = getMagneticFieldAtPosition(y_n, z);
+		Vector3d BField = getMagneticFieldAtPosition(y_n, z, t);
 
 		k[i] = BField.getUnitVector() * c_light;
 
@@ -349,13 +349,13 @@ ref_ptr<MagneticField> DiffusionSDE::getMagneticField() const {
 	return magneticField;
 }
 
-Vector3d DiffusionSDE::getMagneticFieldAtPosition(Vector3d pos, double z) const {
+Vector3d DiffusionSDE::getMagneticFieldAtPosition(Vector3d pos, double z, double t) const {
 	Vector3d B(0, 0, 0);
 	try {
 		// check if field is valid and use the field vector at the
 		// position pos with the redshift z
 		if (magneticField.valid())
-			B = magneticField->getField(pos, z);
+			B = magneticField->getField(pos, z, t);
 	}
 	catch (std::exception &e) {
 		KISS_LOG_ERROR 	<< "DiffusionSDE: Exception in DiffusionSDE::getMagneticFieldAtPosition.\n"
