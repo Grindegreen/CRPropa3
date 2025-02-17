@@ -117,9 +117,10 @@ void SynchrotronRadiation::process(Candidate *candidate) const {
 
 	// calculate gyroradius, evaluated at the current position
 	double z = candidate->getRedshift();
+	double t = candidate->getTime();
 	double B;
 	if (field.valid()) {
-		Vector3d Bvec = field->getField(candidate->current.getPosition(), z);
+		Vector3d Bvec = field->getField(candidate->current.getPosition(), z, t);
 		B = Bvec.cross(candidate->current.getDirection()).getR();
 	} else {
 		B = sqrt(2. / 3) * Brms; // average perpendicular field component
