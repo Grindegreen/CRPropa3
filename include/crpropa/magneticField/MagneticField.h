@@ -82,6 +82,7 @@ public:
  @brief Magnetic field decorator implementing a superposition of fields.
  */
 class MagneticFieldList: public MagneticField {
+protected:
 	std::vector<ref_ptr<MagneticField> > fields;
 public:
 	void addField(ref_ptr<MagneticField> field);
