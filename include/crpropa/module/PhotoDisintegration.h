@@ -80,9 +80,10 @@ public:
 	 @param	id		PDG particle id
 	 @param gamma	Lorentz factor of particle
 	 @param z		redshift
+	 @param time		time
 	 @returns E dx/dE [in meters]
 	 */
-	double lossLength(int id, double gamma, double z = 0);
+	double lossLength(int id, double gamma, double z = 0, double time = 0);
 };
 
 /** @}*/

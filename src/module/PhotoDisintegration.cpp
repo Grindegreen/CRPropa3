@@ -167,13 +167,15 @@ void PhotoDisintegration::process(Candidate *candidate) const {
 
 		// check if in tabulated energy range
 		double z = candidate->getRedshift();
+		double time = candidate->getTime();
 		double lg = log10(candidate->current.getLorentzFactor() * (1 + z));
 		if ((lg <= lgmin) or (lg >= lgmax))
 			return;
 
 		double rate = interpolateEquidistant(lg, lgmin, lgmax, pdRate[idx]);
 		rate *= pow_integer<2>(1 + z) * photonField->getRedshiftScaling(z); // cosmological scaling, rate per comoving distance
-
+		rate *= photonField->getTimeScaling(time); // time scaling
+		
 		// check if interaction occurs in this step
 		// otherwise limit next step to a fraction of the mean free path
 		Random &random = Random::instance();
@@ -270,7 +272,7 @@ void PhotoDisintegration::performInteraction(Candidate *candidate, int channel) 
 	}
 }
 
-double PhotoDisintegration::lossLength(int id, double gamma, double z) {
+double PhotoDisintegration::lossLength(int id, double gamma, double z, double time) {
 	// check if nucleus
 	if (not (isNucleus(id)))
 		return std::numeric_limits<double>::max();
@@ -296,7 +298,7 @@ double PhotoDisintegration::lossLength(int id, double gamma, double z) {
 	double lossRate = interpolateEquidistant(lg, lgmin, lgmax, rate);
 
 	// comological scaling, rate per physical distance
-	lossRate *= pow_integer<3>(1 + z) * photonField->getRedshiftScaling(z);
+	lossRate *= pow_integer<3>(1 + z) * photonField->getRedshiftScaling(z) * photonField->getTimeScaling(time);
 
 	// average number of nucleons lost for all disintegration channels
 	double avg_dA = 0;
