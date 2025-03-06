@@ -112,6 +112,8 @@ public:
 	 @returns The momentum [kg m/s]
 	*/
 	Vector3d getMomentum() const;
+
+	double getAbsoluteVelocity() const;
 };
 /** @}*/
 
