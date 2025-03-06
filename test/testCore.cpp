@@ -49,6 +49,8 @@ TEST(ParticleState, velocity) {
 	ParticleState particle;
 	Vector3d v(1, 1, 0);
 	particle.setDirection(v);
+	particle.setEnergy(1 * EeV); 
+	particle.setId(nucleusId(1,1));
 	EXPECT_TRUE(particle.getVelocity() == v.getUnitVector() * c_light);
 }
 
@@ -128,7 +130,7 @@ TEST(ParticleState, lorentzFactor) {
 	particle.setId(nucleusId(1, 1));
 	particle.setEnergy(1e12 * eV);
 	EXPECT_DOUBLE_EQ(particle.getLorentzFactor(),
-			1e12 * eV / mass_proton / c_squared);
+			1e12 * eV / mass_proton / c_squared + 1);
 }
 
 TEST(ParticleID, nucleusId) {

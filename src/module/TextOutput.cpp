@@ -9,6 +9,9 @@
 
 #include <cstdio>
 #include <stdexcept>
+#include <vector>
+#include <map>
+#include <algorithm>
 #include <iostream>
 
 #ifdef CRPROPA_HAVE_ZLIB
@@ -295,10 +298,9 @@ void TextOutput::load(const std::string &filename, ParticleCollector *collector)
 	std::istream *in;
 	std::ifstream infile(filename.c_str());
 	
-	Output output;
-	double lengthScale = output.getLengthScale();
-	double timeScale = output.getTimeScale();
-	double energyScale = output.getEnergyScale();
+	double lengthScale = Mpc; // default Mpc
+	double energyScale = EeV; // default EeV
+	double timeScale = Myr; // default second
 
 	if (!infile.good())
 		throw std::runtime_error("crpropa::TextOutput: could not open file " + filename);
@@ -308,54 +310,155 @@ void TextOutput::load(const std::string &filename, ParticleCollector *collector)
 #ifdef CRPROPA_HAVE_ZLIB
 		in = new zstream::igzstream(*in);
 #else
-		throw std::runtime_error("CRPropa was built without Zlib compression!");
+		throw std::runtime_error("CRPropa was build without Zlib compression!");
 #endif
 	}
 
-	while (std::getline(*in, line)) {
+	if(infile.peek() != '#'){
+		throw std::runtime_error("CRPropa::TextOutput: the file " + filename + " does not contain the header");
+	}
+
+	// std::vector<std::string> parameters;
+	std::map<std::string, bool> columns;
+    std::getline(*in, line);
+    std::istringstream stream(line);
+    std::string pam;
+	while (!stream.eof()) {
+        stream >> pam;
+		columns.insert(std::pair<std::string, bool>(pam, true));
+        // parameters.push_back(pam); 
+    }
+
+	// std::cout << pam << "\n";
+	// std::getline(*in, line);
+	// std::cout << line << "\n";
+
+
+	while (std::getline(*in,line)) {
+
 		std::stringstream stream(line);
 		if (stream.peek() == '#')
 			continue;
 
 		ref_ptr<Candidate> c = new Candidate(); 
-		double val_d; int val_i;
+		double val_d; int val_i; std::string tag;
 		double x, y, z;
-		stream >> val_d;
-		c->setTrajectoryLength(val_d * lengthScale); // D
-		stream >> val_d;
-		c->setTime(val_d * timeScale); // time
-		stream >> val_d;
-		c->setRedshift(val_d); // z
-		stream >> val_i;
-		c->setSerialNumber(val_i); // SN
-		stream >> val_i;
-		c->current.setId(val_i); // ID
-		stream >> val_d;
-		c->current.setEnergy(val_d * energyScale); // E
-		stream >> x >> y >> z;
-		c->current.setPosition(Vector3d(x, y, z) * lengthScale); // X, Y, Z
-		stream >> x >> y >> z;
-		c->current.setDirection(Vector3d(x, y, z) * lengthScale); // Px, Py, Pz
-		stream >> val_i; // SN0 (TODO: Reconstruct the parent-child relationship)
-		stream >> val_i;
-		c->source.setId(val_i); // ID0
-		stream >> val_d;
-		c->source.setEnergy(val_d * energyScale); // E0
-		stream >> x >> y >> z;
-		c->source.setPosition(Vector3d(x, y, z) * lengthScale); // X0, Y0, Z0
-		stream >> x >> y >> z;
-		c->source.setDirection(Vector3d(x, y, z) * lengthScale); // P0x, P0y, P0z
-		stream >> val_i; // SN1
-		stream >> val_i;
-		c->created.setId(val_i); // ID1
-		stream >> val_d;
-		c->created.setEnergy(val_d * energyScale); // E1
-		stream >> x >> y >> z;
-		c->created.setPosition(Vector3d(x, y, z) * lengthScale); // X1, Y1, Z1
-		stream >> x >> y >> z;
-		c->created.setDirection(Vector3d(x, y, z) * lengthScale); // P1x, P1y, P1z
-		stream >> val_d;
-		c->setWeight(val_d); // W
+
+		if(columns["D"]){
+			stream >> val_d;
+			c->setTrajectoryLength(val_d*lengthScale); // D
+		}
+
+		if(columns["time"]){
+			stream >> val_d;
+			c->setTime(val_d*timeScale); // time
+		}
+
+		if(columns["z"]){
+			stream >> val_d;
+			c->setRedshift(val_d); // z
+		}
+
+		if(columns["SN"]){
+			stream >> val_i;
+			c->setSerialNumber(val_i); // SN
+		}
+
+		if(columns["ID"]){
+			stream >> val_i;
+			c->current.setId(val_i); // ID
+		}
+
+		if(columns["E"]){
+			stream >> val_d;
+			c->current.setEnergy(val_d*energyScale); // E
+		}
+
+		if(columns["X"]){
+			stream >> x;
+		 	c->current.setPosition(Vector3d(x, 0, 0)*lengthScale);  // X
+		}
+
+		if(columns["Y"]){
+			stream >> y >> z;
+			c->current.setPosition(Vector3d(x, y, z)*lengthScale);  // X, Y, Z
+		}
+
+		if(columns["Px"]){
+			stream >> x >> y >> z;
+			c->current.setDirection(Vector3d(x, y, z)*lengthScale); // Px, Py, Pz
+		}
+
+		if(columns["SN0"]){
+			stream >> val_i; // SN0 (TODO: Reconstruct the parent-child relationship)
+			c->setProperty("SN0", val_i);
+		}
+
+		if(columns["ID0"]){
+			stream >> val_i;
+			c->source.setId(val_i); // ID0
+		}
+
+		if(columns["E0"]){
+			stream >> val_d;
+			c->source.setEnergy(val_d*energyScale);	// E0
+		}
+
+		if(columns["X0"]){
+			stream >> x;
+			c->source.setPosition(Vector3d(x, 0, 0)*lengthScale); // X0
+		}
+
+		if(columns["Y0"]){
+			stream >> y >> z;
+			c->source.setPosition(Vector3d(x, y, z)*lengthScale); // X0, Y0, Z0
+		}
+		
+		if(columns["P0x"]){
+			stream >> x >> y >> z;
+			c->source.setDirection(Vector3d(x, y, z)*lengthScale); // P0x, P0y, P0z
+		}
+
+		if(columns["SN1"]){
+			stream >> val_i; // SN1
+			c->setProperty("SN1", val_i);
+		}
+
+		if(columns["ID1"]){
+			stream >> val_i;
+			c->created.setId(val_i); // ID1
+		}
+
+		if(columns["E1"]){
+			stream >> val_d;
+			c->created.setEnergy(val_d*energyScale);	// E1
+		}
+
+		if(columns["X1"]){
+			stream >> x;
+			c->created.setPosition(Vector3d(x, 0, 0)*lengthScale); // X1
+		}
+
+		if(columns["Y1"]){
+			stream >> y >> z;
+			c->created.setPosition(Vector3d(x, y, z)*lengthScale); // X1, Y1, Z1
+		}
+		
+		if(columns["P1x"]){
+			stream >> x >> y >> z;
+			c->created.setDirection(Vector3d(x, y, z)*lengthScale); // P1x, P1y, P1z
+		}
+
+		if(columns["W"]){
+			stream >> val_d;
+			c->setWeight(val_d); // Weights
+		}
+
+		if(columns["tag"]){
+			stream >> tag;
+			c->setTagOrigin(tag); // tag
+		}
+
 
 		collector->process(c);
 	}

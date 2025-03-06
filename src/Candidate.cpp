@@ -92,7 +92,7 @@ void Candidate::updateWeight(double w) {
 void Candidate::setCurrentStep(double lstep) {
 	currentStep = lstep;
 	trajectoryLength += lstep;
-	time += lstep / getVelocity();
+	time += lstep / current.getAbsoluteVelocity();
 }
 
 void Candidate::setNextStep(double step) {
@@ -172,8 +172,9 @@ void Candidate::addSecondary(int id, double energy, double w, std::string tagOri
 void Candidate::addSecondary(int id, double energy, Vector3d position, double w, std::string tagOrigin) {
 	ref_ptr<Candidate> secondary = new Candidate;
 	secondary->setRedshift(redshift);
-	secondary->setTrajectoryLength(trajectoryLength - (current.getPosition() - position).getR());
-	secondary->setTime(time - (current.getPosition() - position).getR() / getVelocity());
+	double dR = (current.getPosition() - position).getR();
+	secondary->setTrajectoryLength(trajectoryLength - dR);
+	secondary->setTime(time - dR / current.getAbsoluteVelocity());
 	secondary->setWeight(weight * w);
 	secondary->setTagOrigin(tagOrigin);
 	for (PropertyMap::const_iterator it = properties.begin(); it != properties.end(); ++it) {
