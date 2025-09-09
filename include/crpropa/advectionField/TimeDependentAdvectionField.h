@@ -1,5 +1,5 @@
-#ifndef CRPROPA_TIMEDEPENDENTADVECTIONFIELDS_H
-#define CRPROPA_TIMEDEPENDENTADVECTIONFIELDS_H
+#ifndef CRPROPA_TIMEDEPENDENTADVECTIONFIELD_H
+#define CRPROPA_TIMEDEPENDENTADVECTIONFIELD_H
 
 #include "crpropa/advectionField/AdvectionField.h"
 
@@ -40,7 +40,7 @@ public:/** Constructor
 	Vector3d getField(const Vector3d &position, const double &time=0) const;
 	double getDivergence(const Vector3d &position, const double &time=0) const;
 
-	void setVshock(double v_sh);
+	void setShockSpeed(double v_sh);
 	void setSpeeds(double v1, double v0);
 	void setShockWidth(double l_sh);
 	void setShockPosition(double x_sh0);
@@ -85,4 +85,4 @@ public:/** Constructor
 
 } // namespace crpropa
 
-#endif // CRPROPA_TIMEDEPENDENTADVECTIONFIELDS_H
+#endif // CRPROPA_TIMEDEPENDENTADVECTIONFIELD_H

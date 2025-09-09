@@ -1,12 +1,19 @@
 #ifndef CRPROPA_MODULE_LIST_H
 #define CRPROPA_MODULE_LIST_H
 
+#include <algorithm>
+#include <csignal>
+#include <iostream>
+#include <vector>
+#include <exception>
+#include <sstream>
+#include <list>
+
 #include "crpropa/Candidate.h"
 #include "crpropa/Module.h"
 #include "crpropa/Source.h"
+#include "crpropa/module/Output.h"
 
-#include <list>
-#include <sstream>
 
 namespace crpropa {
 
@@ -47,9 +54,15 @@ public:
 	iterator end();
 	const_iterator end() const;
 
+	void setInterruptAction(Output* action);
+	void dumpCandidate(Candidate* cand) const;
+
 private:
 	module_list_t modules;
 	bool showProgress;
+	Output* interruptAction;
+	bool haveInterruptAction = false;
+	std::vector<int> notFinished; // list with not finished numbers of candidates
 };
 
 /**

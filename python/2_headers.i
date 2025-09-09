@@ -279,6 +279,11 @@
 %feature("director") crpropa::AbstractCondition;
 %include "crpropa/Module.h"
 
+%template(OutputRefPtr) crpropa::ref_ptr<Output>;
+%feature("director") crpropa::Output;
+%ignore crpropa::Output::dumpIndexList(std::vector<int>);
+%include "crpropa/module/Output.h"
+
 %implicitconv crpropa::ref_ptr<crpropa::MagneticField>;
 %template(MagneticFieldRefPtr) crpropa::ref_ptr<crpropa::MagneticField>;
 %feature("director") crpropa::MagneticField;
@@ -331,7 +336,7 @@
 %implicitconv crpropa::ref_ptr<crpropa::CylindricalProjectionMap>;
 %template(CylindricalProjectionMapRefPtr) crpropa::ref_ptr<crpropa::CylindricalProjectionMap>;
 
-%include "crpropa/advectionField/TimeDependentAdvectionFields.h"
+%include "crpropa/advectionField/TimeDependentAdvectionField.h"
 %include "crpropa/magneticField/MagneticFieldGrid.h"
 %include "crpropa/magneticField/GalacticMagneticField.h"
 %feature("notabstract") QuimbyMagneticFieldAdapter;
@@ -342,6 +347,7 @@
 %include "crpropa/magneticField/PT11Field.h"
 %include "crpropa/magneticField/TF17Field.h"
 %include "crpropa/magneticField/UF23Field.h"
+%include "crpropa/magneticField/KST24Field.h"
 %include "crpropa/magneticField/ArchimedeanSpiralField.h"
 %include "crpropa/magneticField/CMZField.h"
 %include "crpropa/magneticField/turbulentField/TurbulentField.h"
@@ -395,8 +401,6 @@
   }
 }
 
-
-%include "crpropa/module/Output.h"
 %include "crpropa/module/DiffusionSDE.h"
 %include "crpropa/module/TextOutput.h"
 %include "crpropa/module/HDF5Output.h"

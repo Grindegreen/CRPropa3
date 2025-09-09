@@ -70,7 +70,7 @@ if(ENABLE_GIT)
   get_git_head_revision(GIT_REFSPEC GIT_SHA1)
   git_describe(GIT_DESC --tags)
 endif(ENABLE_GIT)
-IF(NOT ENABLE_GIT OR (${GIT_SHA1} STREQUAL "GITDIR-NOTFOUND"))
+IF(NOT ENABLE_GIT OR ("${GIT_SHA1}" STREQUAL "GITDIR-NOTFOUND"))
   set(GIT_REFSPEC "")
   set(GIT_SHA1 "")
   set(GIT_DESC "${CRPROPA_RELEASE_VERSION}-no-git")
@@ -402,9 +402,10 @@ add_library(crpropa SHARED
   src/magneticField/turbulentField/SimpleGridTurbulence.cpp
   src/magneticField/TF17Field.cpp
   src/magneticField/UF23Field.cpp
+  src/magneticField/KST24Field.cpp
   src/magneticField/CMZField.cpp
   src/advectionField/AdvectionField.cpp
-  src/advectionField/TimeDependentAdvectionFields.cpp
+  src/advectionField/TimeDependentAdvectionField.cpp
   src/massDistribution/ConstantDensity.cpp
   src/massDistribution/Cordes.cpp
   src/massDistribution/Ferriere.cpp
