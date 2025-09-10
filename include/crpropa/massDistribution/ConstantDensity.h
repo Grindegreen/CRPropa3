@@ -36,27 +36,27 @@ public:
 	 @param position 	position in galactic coordinates with Earth at (-8.5 kpc, 0, 0)
 	 @returns Density in parts/m^3, sum up all activated parts
 	 */
-	double getDensity(const Vector3d &position) const;
+	double getDensity(const Vector3d &position, const double &time=0) const;
 	/** Get HI density at a given position.
 	 @param position position in galactic coordinates with Earth at (-8.5 kpc, 0, 0)
 	 @returns (constant) density of HI in parts/m^3
 	 */
-	double getHIDensity(const Vector3d &position) const;
+	double getHIDensity(const Vector3d &position, const double &time=0) const;
 	/** Get HII density at a given position.
 	 @param position position in galactic coordinates with Earth at (-8.5 kpc, 0, 0)
 	 @returns (constant) density of HII in parts/m^3 
 	 */
-	double getHIIDensity(const Vector3d &position) const;
+	double getHIIDensity(const Vector3d &position, const double &time=0) const;
 	/** Get H2 density at a given position.
 	 @param position position in galactic coordinates with Earth at (-8.5 kpc, 0, 0)
 	 @returns (constant) density of H2 in parts/m^3 
 	*/
-	double getH2Density(const Vector3d &position) const;
+	double getH2Density(const Vector3d &position, const double &time=0) const;
 	/** Get density at a given position.
 	 @param position position in galactic coordinates with Earth at (-8.5 kpc, 0, 0)
 	 @returns number of nucleons/m^3, sum up all activated parts and weights H2 twice 
 	 */
-	double getNucleonDensity(const Vector3d &position) const;
+	double getNucleonDensity(const Vector3d &position, const double &time=0) const;
 
 	/** Status of HI -- active or not.
 	 @returns Boolean flag with activation status of HI 

@@ -16,23 +16,23 @@ public:
 	virtual ~Density() {
 	}
 
-	virtual double getDensity(const Vector3d &position, double t = 0) const {  // sum of all densities
+	virtual double getDensity(const Vector3d &position, const double &time = 0) const {  // sum of all densities
 		return 0;
 	}
 
-	virtual double getHIDensity(const Vector3d &position, double t = 0) const {
+	virtual double getHIDensity(const Vector3d &position, const double &time = 0) const {
 		return 0;
 	}
 
-	virtual double getHIIDensity(const Vector3d &position, double t = 0) const {
+	virtual double getHIIDensity(const Vector3d &position, const double &time = 0) const {
 		return 0;
 	}
 
-	virtual double getH2Density(const Vector3d &position, double t = 0) const {
+	virtual double getH2Density(const Vector3d &position, const double &time = 0) const {
 		return 0;
 	}
 
-	virtual double getNucleonDensity(const Vector3d &position, double t = 0) const {  // sum of nucleons (H2 with factor 2)
+	virtual double getNucleonDensity(const Vector3d &position, const double &time = 0) const {  // sum of nucleons (H2 with factor 2)
 		return 0;
 	}
 
