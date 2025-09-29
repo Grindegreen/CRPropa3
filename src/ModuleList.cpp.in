@@ -1,5 +1,6 @@
 #include "crpropa/ModuleList.h"
 #include "crpropa/ProgressBar.h"
+#include <csignal>
 
 #ifndef sighandler_t
 typedef void (*sighandler_t)(int);
@@ -13,14 +14,16 @@ using namespace std;
 
 namespace crpropa {
 
-int g_cancel_signal_flag = 0;
+static volatile sig_atomic_t g_cancel_signal_flag = 0;
 
 void g_cancel_signal_callback(int sig) {
 	std::cerr << "crpropa::ModuleList: Signal " << sig << " (SIGINT/SIGTERM) received" << std::endl;
 	g_cancel_signal_flag = sig;
 }
 
-ModuleList::ModuleList() : showProgress(false) {
+ModuleList::ModuleList() : showProgress(false),
+						haveInterruptAction(false),
+						interruptAction(nullptr) {
 }
 
 ModuleList::~ModuleList() {
@@ -95,6 +98,7 @@ void ModuleList::run(ref_ptr<Candidate> candidate, bool recursive, bool secondar
 }
 
 void ModuleList::run(const candidate_vector_t *candidates, bool recursive, bool secondariesFirst) {
+	notFinished.clear();
 	size_t count = candidates->size();
 
 #if _OPENMP
@@ -145,12 +149,18 @@ void ModuleList::run(const candidate_vector_t *candidates, bool recursive, bool 
 		std::cerr << "############################################################################\n";
 	
 		// dump list to output file 
-		std::sort(notFinished.begin(), notFinished.end());
-		interruptAction->dumpIndexList(notFinished);
+		if (haveInterruptAction && !notFinished.empty()) {
+			std::sort(notFinished.begin(), notFinished.end());
+			#ifdef _OPENMP
+			#pragma omp critical(interrupt_output)
+			#endif
+			interruptAction->dumpIndexList(notFinished);   // CHANGE: serialize index dump
+		}
 	}
 }
 
 void ModuleList::run(SourceInterface *source, size_t count, bool recursive, bool secondariesFirst) {
+	notFinished.clear();
 
 #if _OPENMP
 	std::cout << "crpropa::ModuleList: Number of Threads: " << omp_get_max_threads() << std::endl;
@@ -212,6 +222,14 @@ void ModuleList::run(SourceInterface *source, size_t count, bool recursive, bool
 		std::cerr << "# Interrupted CRPropa simulation \n";
 		std::cerr << "# Number of not started candidates from source: " << notFinished.size() << "\n";
 		std::cerr << "############################################################################\n";
+
+		if (haveInterruptAction && !notFinished.empty()) {
+			std::sort(notFinished.begin(), notFinished.end());
+			#ifdef _OPENMP
+			#pragma omp critical(interrupt_output)
+			#endif
+			interruptAction->dumpIndexList(notFinished);   // CHANGE: write indices
+    	}
 	}
 }
 
@@ -254,6 +272,9 @@ void ModuleList::dumpCandidate(Candidate *cand) const {
 		return;
 	
 	if (cand->isActive())
+	#ifdef _OPENMP
+	#pragma omp critical(interrupt_output)
+	#endif
 		interruptAction->process(cand); 
 	else 
 		KISS_LOG_WARNING << "ModuleList::dumpCandidate is called with a non active candidate. This should not happen for the interrupt action. Please check candidate with serial number " 
