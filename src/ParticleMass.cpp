@@ -13,6 +13,54 @@
 
 namespace crpropa {
 
+struct PDGMassTable {
+	bool initialized;
+	std::vector<std::pair<int, double>> table;  // (abs(Pid), mass_kg)
+
+	PDGMassTable() : initialized(false) {}
+
+	void init() {
+		std::string filename = getDataPath("particle_mass.txt");
+		std::ifstream infile(filename.c_str());
+		if (!infile.good())
+			throw std::runtime_error("crpropa: could not open file " + filename);
+
+		// Format per line: <pdgId> <mass_kg>
+		// Comment lines start with '#'
+		while (infile.good()) {
+			if (infile.peek() != '#') {
+				int pid;
+				double mass_kg;
+				if (infile >> pid >> mass_kg) {
+					table.push_back(std::make_pair(std::abs(pid), mass_kg));
+				}
+			}
+			infile.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		}
+		infile.close();
+		initialized = true;
+	}
+
+	bool tryGetMass(int absPid, double &mass_kg) {
+		if (!initialized) {
+#pragma omp critical(init_pdgmass)
+			{
+				if (!initialized)
+					init();
+			}
+		}
+		for (size_t i = 0; i < table.size(); ++i) {
+			if (table[i].first == absPid) {
+				mass_kg = table[i].second;
+				return true;
+			}
+		}
+		return false;
+	}
+};
+
+static PDGMassTable pdgMassTable;
+
 struct NuclearMassTable {
 	bool initialized;
 	std::vector<double> table;
@@ -56,6 +104,12 @@ static NuclearMassTable nuclearMassTable;
 double particleMass(int id) {
 	if (isNucleus(id))
 		return nuclearMass(id);
+	
+	double mass;
+    const int aId = std::abs(id);
+    if (pdgMassTable.tryGetMass(aId, mass))
+        return mass;
+
 	if (abs(id) == 11)
 		return mass_electron;
 	return 0.0;
