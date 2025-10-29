@@ -387,6 +387,7 @@ add_library(crpropa SHARED
   src/module/RestrictToRegion.cpp
   src/module/SimplePropagation.cpp
   src/module/SynchrotronRadiation.cpp
+  src/module/AnalyticHadronicLosses.cpp
   src/module/TextOutput.cpp
   src/module/Tools.cpp
   src/magneticField/ArchimedeanSpiralField.cpp

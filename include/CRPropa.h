@@ -53,6 +53,7 @@
 #include "crpropa/module/SynchrotronRadiation.h"
 #include "crpropa/module/TextOutput.h"
 #include "crpropa/module/Tools.h"
+#include "crpropa/module/AnalyticHadronicLosses.h"
 
 #include "crpropa/magneticField/ArchimedeanSpiralField.h"
 #include "crpropa/magneticField/JF12Field.h"
