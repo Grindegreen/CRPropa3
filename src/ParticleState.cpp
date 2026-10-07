@@ -81,9 +81,7 @@ void ParticleState::setLorentzFactor(double lf) {
 }
 
 Vector3d ParticleState::getVelocity() const {
-	double lf = getLorentzFactor(); 
-	double beta = sqrt(1 - 1 / lf / lf);
-	return direction * c_light * beta;
+	return direction * getAbsoluteVelocity();
 }
 
 Vector3d ParticleState::getMomentum() const {
@@ -96,8 +94,14 @@ Vector3d ParticleState::getMomentum() const {
 }
 
 double ParticleState::getAbsoluteVelocity() const {
-	double lf = getLorentzFactor(); 
-	return sqrt(1 - 1 / lf / lf) * c_light;
+	// Massless particles move at $c$. Branching here avoids $0/0$ for $E = m = 0$
+	// (e.g. a default-constructed candidate) and $\gamma = \infty$ for photons.
+	if (pmass == 0)
+		return c_light;
+	// $v = p c^{2} / (K + m c^{2}) = c \sqrt{K (K + 2 m c^{2})} / (K + m c^{2})$.
+	// Same result as $c \sqrt{1 - \gamma^{-2}}$, but without cancellation for $K \ll m c^{2}$.
+	double restEnergy = pmass * c_squared;
+	return c_light * std::sqrt(energy * (energy + 2 * restEnergy)) / (energy + restEnergy);
 }
 
 std::string ParticleState::getDescription() const {
