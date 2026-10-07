@@ -108,7 +108,8 @@ public:
 	 @returns Velocity of particle [m/s]
 	 */
 	Vector3d getVelocity() const;
-	/** Get momentum: direction times energy divided by the speed of light 
+	/** Get momentum: direction times $\sqrt{K (K + 2 m c^{2})} / c$ for kinetic energy $K$
+	 ($E / c$ for massless particles)
 	 @returns The momentum [kg m/s]
 	*/
 	Vector3d getMomentum() const;

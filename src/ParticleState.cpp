@@ -87,9 +87,12 @@ Vector3d ParticleState::getVelocity() const {
 }
 
 Vector3d ParticleState::getMomentum() const {
-	double lf = getLorentzFactor(); 
-	double beta = sqrt(1 - 1 / lf / lf);
-	return direction * (energy / c_light / beta);
+	// energy is the kinetic energy $K$, so $p c = \sqrt{K (K + 2 m c^{2})}$.
+	// ($K / (\beta c)$, used before, is low by a factor $\gamma / (\gamma + 1)$.)
+	// Massless particles: $p = E / c$, returned directly to avoid rounding.
+	if (pmass == 0)
+		return direction * (energy / c_light);
+	return direction * (std::sqrt(energy * (energy + 2 * pmass * c_squared)) / c_light);
 }
 
 double ParticleState::getAbsoluteVelocity() const {

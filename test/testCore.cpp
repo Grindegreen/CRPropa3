@@ -62,6 +62,22 @@ TEST(ParticleState, momentum) {
 	EXPECT_TRUE(particle.getMomentum() == v * (particle.getEnergy() / c_light));
 }
 
+TEST(ParticleState, momentumKineticEnergy) {
+	// Proton with kinetic energy $K = 0.1\,\mathrm{GeV}$: $p = \gamma m \beta c$.
+	ParticleState particle;
+	particle.setId(nucleusId(1, 1));
+	particle.setDirection(Vector3d(0, 0, 1));
+	particle.setEnergy(0.1 * GeV);
+	double m = particle.getMass();
+	double gamma = 1 + 0.1 * GeV / (m * c_squared);
+	double beta = std::sqrt(1 - 1 / (gamma * gamma));
+	double p = gamma * m * beta * c_light;
+	EXPECT_NEAR(particle.getMomentum().getR(), p, 1e-12 * p);
+	EXPECT_NEAR(particle.getMomentum().z, p, 1e-12 * p);
+	// Consistency with the velocity: $p = \gamma m v$.
+	EXPECT_NEAR(particle.getAbsoluteVelocity(), beta * c_light, 1e-12 * c_light);
+}
+
 TEST(ParticleState, id) {
 	ParticleState particle;
 	particle.setId(nucleusId(12, 6));
