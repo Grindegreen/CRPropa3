@@ -4,6 +4,7 @@
 #include "crpropa/Common.h"
 #include "kiss/logger.h"
 
+#include <algorithm>
 #include <vector>
 #include <cmath>
 
@@ -75,77 +76,71 @@ void EMPairProduction::initCumulativeRate(std::string path) {
 	this->interactionRates->initCumulativeRate(path);
 }
 
+// differential cross section for pair production for x = Epositron/Egamma, compare Lee 96 arXiv:9604098
+double PPSecondariesEnergyDistribution::dSigmadE_PPx(double x, double beta) {
+	double A = (x / (1. - x) + (1. - x) / x );
+	double B =  (1. / x + 1. / (1. - x) );
+	double y = (1 - beta * beta);
+	return A + y * B - y * y / 4 * B * B;
+}
+
 // Hold an data array to interpolate the energy distribution on
-class PPSecondariesEnergyDistribution {
-private:
-	std::vector<double> tab_s;
-	std::vector< std::vector<double> > data;
-	size_t N;
+PPSecondariesEnergyDistribution::PPSecondariesEnergyDistribution() {
+	N = 1000;
+	size_t Ns = 1000;
+	double s_min = 4 * mec2 * mec2;
+	double s_max = 1e23 * eV * eV;
+	double dls = log(s_max / s_min) / Ns;
+	data = std::vector< std::vector<double> >(Ns, std::vector<double>(N));
+	tab_s = std::vector<double>(Ns + 1);
 	
-public:
-	// differential cross section for pair production for x = Epositron/Egamma, compare Lee 96 arXiv:9604098
-	double dSigmadE_PPx(double x, double beta) {
-		double A = (x / (1. - x) + (1. - x) / x );
-		double B =  (1. / x + 1. / (1. - x) );
-		double y = (1 - beta * beta);
-		return A + y * B - y * y / 4 * B * B;
-	}
+	for (size_t i = 0; i < Ns + 1; ++i)
+		tab_s[i] = s_min * exp(i*dls); // tabulate s bin borders
+	tab_s[Ns] = s_max; // exact upper border (exp may round it)
 	
-	PPSecondariesEnergyDistribution() {
-		N = 1000;
-		size_t Ns = 1000;
-		double s_min = 4 * mec2 * mec2;
-		double s_max = 1e23 * eV * eV;
-		double dls = log(s_max / s_min) / Ns;
-		data = std::vector< std::vector<double> >(Ns, std::vector<double>(N));
-		tab_s = std::vector<double>(Ns + 1);
-		
-		for (size_t i = 0; i < Ns + 1; ++i)
-			tab_s[i] = s_min * exp(i*dls); // tabulate s bin borders
-		
-		for (size_t i = 0; i < Ns; i++) {
-			double s = s_min * exp(i*dls + 0.5*dls);
-			double beta = sqrt(1 - s_min/s);
-			double x0 = (1 - beta) / 2;
-			double dx = log((1 + beta) / (1 - beta)) / N;
-			
-			// cumulative midpoint integration
-			std::vector<double> data_i(1000);
-			data_i[0] = dSigmadE_PPx(x0, beta) * expm1(dx);
-			for (size_t j = 1; j < N; j++) {
-				double x = x0 * exp(j*dx + 0.5*dx);
-				double binWidth = exp((j+1)*dx)-exp(j*dx);
-				data_i[j] = dSigmadE_PPx(x, beta) * binWidth + data_i[j-1];
-			}
-			data[i] = data_i;
-		}
-	}
-	
-	// sample positron energy from cdf(E, s_kin)
-	double sample(double E0, double s) {
-		// get distribution for given s
-		size_t idx = std::lower_bound(tab_s.begin(), tab_s.end(), s) - tab_s.begin();
-		if (idx > data.size())
-			return NAN;
-		
-		std::vector<double> s0 = data[idx];
-		
-		// draw random bin
-		Random &random = Random::instance();
-		size_t j = random.randBin(s0) + 1;
-		
-		double s_min = 4. * mec2 * mec2;
-		double beta = sqrtl(1. - s_min / s);
-		double x0 = (1. - beta) / 2.;
+	for (size_t i = 0; i < Ns; i++) {
+		double s = s_min * exp(i*dls + 0.5*dls);
+		double beta = sqrt(1 - s_min/s);
+		double x0 = (1 - beta) / 2;
 		double dx = log((1 + beta) / (1 - beta)) / N;
-		double binWidth = x0 * (exp(j*dx) - exp((j-1)*dx));
-		if (random.rand() < 0.5)
-			return E0 * (x0 * exp((j-1) * dx) + binWidth);
-		else
-			return E0 * (1 - (x0 * exp((j-1) * dx) + binWidth));
+		
+		// cumulative midpoint integration
+		std::vector<double> data_i(1000);
+		data_i[0] = dSigmadE_PPx(x0, beta) * expm1(dx);
+		for (size_t j = 1; j < N; j++) {
+			double x = x0 * exp(j*dx + 0.5*dx);
+			double binWidth = exp((j+1)*dx)-exp(j*dx);
+			data_i[j] = dSigmadE_PPx(x, beta) * binWidth + data_i[j-1];
+		}
+		data[i] = data_i;
 	}
+}
+
+// sample positron energy from cdf(E, s_kin)
+double PPSecondariesEnergyDistribution::sample(double E0, double s) {
+	// get distribution for given s: bin idx holds tab_s[idx] <= s < tab_s[idx + 1], and s = s_max the last bin
+	// (data has one bin less than tab_s has borders)
+	if (!(s >= tab_s.front() && s <= tab_s.back()))
+		return NAN;
+	size_t idx = std::upper_bound(tab_s.begin(), tab_s.end(), s) - tab_s.begin() - 1;
+	idx = std::min(idx, data.size() - 1);
+
+	std::vector<double> s0 = data[idx];
 	
-};
+	// draw random bin
+	Random &random = Random::instance();
+	size_t j = random.randBin(s0) + 1;
+	
+	double s_min = 4. * mec2 * mec2;
+	double beta = sqrtl(1. - s_min / s);
+	double x0 = (1. - beta) / 2.;
+	double dx = log((1 + beta) / (1 - beta)) / N;
+	double binWidth = x0 * (exp(j*dx) - exp((j-1)*dx));
+	if (random.rand() < 0.5)
+		return E0 * (x0 * exp((j-1) * dx) + binWidth);
+	else
+		return E0 * (1 - (x0 * exp((j-1) * dx) + binWidth));
+}
 
 double EMPairProduction::getRate(double E, const Vector3d &position, double z) const {
 	return this->interactionRates->getProcessRate(E, position) * pow_integer<2>(1 + z) * photonField->getRedshiftScaling(z);

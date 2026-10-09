@@ -1039,10 +1039,31 @@ TEST(EMPairProduction, secondaries) {
 				Etot += s.current.getEnergy();
 			}
 
-			// test energy conservation 
+			// test energy conservation
 		EXPECT_DOUBLE_EQ(Ep, Etot);
 		}
 	}
+}
+
+TEST(EMPairProduction, secondariesEnergyDistributionRange) {
+	// Test if the lepton energy is sampled in the whole tabulated range of s, from s_min = (2 m_e c^2)^2 to
+	// s_max = 1e23 eV^2 including the top bin (0.975 s_max <= s <= s_max), and if s outside gives NaN.
+	PPSecondariesEnergyDistribution distribution;
+	const double mec2 = mass_electron * c_squared;
+	const double sMin = 4 * mec2 * mec2;
+	const double sMax = 1e23 * eV * eV;
+	const double E = 1e23 * eV;
+	const double s[] = {sMin, 2 * sMin, 1e20 * eV * eV, 0.98 * sMax, 0.9999 * sMax, sMax};
+	for (double si : s) {
+		for (int k = 0; k < 100; k++) {
+			double Ee = distribution.sample(E, si);
+			EXPECT_TRUE(std::isfinite(Ee));
+			EXPECT_GT(Ee, 0);
+			EXPECT_LT(Ee, E);
+		}
+	}
+	EXPECT_TRUE(std::isnan(distribution.sample(E, 0.5 * sMin)));
+	EXPECT_TRUE(std::isnan(distribution.sample(E, 1.01 * sMax)));
 }
 
 TEST(EMPairProduction, interactionTag) {

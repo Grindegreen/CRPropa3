@@ -2,6 +2,7 @@
 #define CRPROPA_EMPAIRPRODUCTION_H
 
 #include <string>
+#include <vector>
 
 #include "crpropa/Module.h"
 #include "crpropa/PhotonBackground.h"
@@ -110,6 +111,32 @@ public:
 		
 	void performInteraction(Candidate *candidate) const;
 	void process(Candidate *candidate) const;
+};
+
+/**
+ @class PPSecondariesEnergyDistribution
+ @brief Energy distribution of the electron and positron from pair production, used by EMPairProduction.
+
+ Holds the cumulative differential cross section in x = E_positron / E_photon (N = 1000 bins) for Ns = 1000 bins in
+ the squared center-of-mass energy s, log-spaced from s_min = (2 m_e c^2)^2 to s_max = 1e23 eV^2.
+ */
+class PPSecondariesEnergyDistribution {
+private:
+	std::vector<double> tab_s;					// bin borders in s (Ns + 1 values)
+	std::vector< std::vector<double> > data;	// cumulative distribution in x for each bin in s
+	size_t N;									// number of bins in x
+public:
+	PPSecondariesEnergyDistribution();
+
+	/** Differential cross section for x = E_positron / E_photon, compare Lee 96 arXiv:9604098 */
+	double dSigmadE_PPx(double x, double beta);
+
+	/** Sample the energy of one lepton of the pair (positron or electron at random).
+	 @param E0	energy of the photon
+	 @param s	squared center-of-mass energy
+	 @returns	energy of the lepton; NaN for s outside the tabulated range
+	 */
+	double sample(double E0, double s);
 };
 
 } // namespace crpropa
