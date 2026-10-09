@@ -178,14 +178,11 @@ void EMPairProduction::performInteraction(Candidate *candidate) const {
 	Random &random = Random::instance();
 	size_t i = closestIndex(E, tabE);  // find closest tabulation point
 	size_t j = random.randBin(tabCDF[i]);
-	if (j <= 0) {
-		KISS_LOG_WARNING 
-			<< "EMPaiProduction: Sampled s value is the lowest tabulated value, which is not physical."
-			<< " The index j will be set to 1 to avoid division by zero.";
-		j = 1;  // ensure j is at least 1 to avoid division by
-	}
-	double lo = std::max(4 * mec2 * mec2, tabs[j-1]);  // first s-tabulation point below min(s_kin) = (2 me c^2)^2; ensure physical value
-	double hi = tabs[j];
+	// bin j of the cumulative rate holds tabs[j-1] < s <= tabs[j]; bin 0 holds the rate from the threshold
+	// (2 me c^2)^2 to the first tabulated value tabs[0], which lies above the threshold in the tables
+	const double sMin = 4 * mec2 * mec2;
+	double lo = (j == 0) ? sMin : std::max(sMin, tabs[j-1]);
+	double hi = std::max(lo, tabs[j]);
 	double s = lo + random.rand() * (hi - lo);
 	
 	// sample electron / positron energy

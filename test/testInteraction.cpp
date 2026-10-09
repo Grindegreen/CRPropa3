@@ -1066,6 +1066,30 @@ TEST(EMPairProduction, secondariesEnergyDistributionRange) {
 	EXPECT_TRUE(std::isnan(distribution.sample(E, 1.01 * sMax)));
 }
 
+TEST(EMPairProduction, secondariesBelowFirstTabulatedS) {
+	// Test if s is sampled between the threshold s_min = (2 m_e c^2)^2 and the first tabulated value s_0 when the
+	// first bin of the cumulative rate is drawn. For the CMB at 1e13 eV the whole rate lies below s_0 = 10^12.1 eV^2
+	// (1.2053 s_min), so every lepton has x = E_lepton / E_photon in [x_0, 1 - x_0] with x_0 = (1 - beta_0) / 2,
+	// beta_0 = sqrt(1 - s_min / s_0). Before, this bin was replaced by the next one, s_0 < s < 1.5174 s_min.
+	EMPairProduction m(new CMB());
+	m.setHaveElectrons(true);
+	m.setThinning(0.);
+	const double mec2 = mass_electron * c_squared;
+	const double s0 = pow(10, 12.1) * eV * eV;
+	const double x0 = (1 - sqrt(1 - 4 * mec2 * mec2 / s0)) / 2;
+	const double E = 1e13 * eV;
+	for (int i = 0; i < 1000; i++) {
+		Candidate c(22, E);
+		m.performInteraction(&c);
+		ASSERT_EQ(c.secondaries.size(), 2);
+		for (size_t k = 0; k < c.secondaries.size(); k++) {
+			double x = c.secondaries[k]->current.getEnergy() / E;
+			EXPECT_GE(x, x0 * (1 - 1e-12));
+			EXPECT_LE(x, (1 - x0) * (1 + 1e-12));
+		}
+	}
+}
+
 TEST(EMPairProduction, interactionTag) {
 	EMPairProduction m(new CMB());
 
