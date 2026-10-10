@@ -205,7 +205,7 @@ void EMPairProduction::performInteraction(Candidate *candidate) const {
 
 	// sample the value of s
 	Random &random = Random::instance();
-	size_t i = closestIndex(E, tabE);  // find closest tabulation point
+	size_t i = interpolatedIndex(E, tabE, random.rand()); // one of the two tabulated energies around E
 	size_t j = random.randBin(tabCDF[i]);
 	// bin j of the cumulative rate holds tabs[j-1] < s <= tabs[j]; bin 0 holds the rate from the threshold
 	// (2 me c^2)^2 to the first tabulated value tabs[0], which lies above the threshold in the tables

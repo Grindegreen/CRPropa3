@@ -152,6 +152,18 @@ size_t closestIndex(double x, const std::vector<double> &X) {
 		return i1;
 }
 
+size_t interpolatedIndex(double x, const std::vector<double> &X, double u) {
+	if (x <= X.front())
+		return 0;
+	if (x >= X.back())
+		return X.size() - 1;
+	// X[i0] <= x < X[i0 + 1]
+	size_t i1 = std::upper_bound(X.begin(), X.end(), x) - X.begin();
+	size_t i0 = i1 - 1;
+	double weight = std::log(x / X[i0]) / std::log(X[i1] / X[i0]); // probability of i1
+	return (u < weight) ? i1 : i0;
+}
+
 std::string splitFilename(const std::string str) {
 	std::size_t found = str.find_last_of("/\\");
 	std::string s = str.substr(found + 1);

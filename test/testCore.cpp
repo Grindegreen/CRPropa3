@@ -358,6 +358,27 @@ TEST(common, interpolateEquidistant) {
 	EXPECT_EQ(9, interpolateEquidistant(3.1, 1, 3, yD));
 }
 
+TEST(common, interpolatedIndex) {
+	// Test if one of the two neighbouring points is chosen with the probability of linear interpolation in ln x: for
+	// x = X[1] (X[2] / X[1])^t the index 2 for u < t and 1 otherwise; end points outside the range.
+	std::vector<double> X = {1., 10., 100., 1000.};
+	EXPECT_EQ(interpolatedIndex(0.5, X, 0.), 0);
+	EXPECT_EQ(interpolatedIndex(5000., X, 0.99), 3);
+	EXPECT_EQ(interpolatedIndex(1000., X, 0.5), 3);
+	EXPECT_EQ(interpolatedIndex(10., X, 0.), 1); // on a point: that point
+	EXPECT_EQ(interpolatedIndex(10., X, 0.999), 1);
+	const double t = 0.3;
+	const double x = 10. * std::pow(10., t);
+	int upper = 0;
+	const int n = 10000;
+	for (int k = 0; k < n; k++) { // u uniform over [0, 1)
+		size_t i = interpolatedIndex(x, X, (k + 0.5) / n);
+		EXPECT_TRUE(i == 1 || i == 2);
+		upper += (i == 2);
+	}
+	EXPECT_NEAR(double(upper) / n, t, 1. / n);
+}
+
 TEST(common, pow_integer) {
 	EXPECT_EQ(pow_integer<0>(1.23), 1);
 	EXPECT_FLOAT_EQ(pow_integer<1>(1.234), 1.234);

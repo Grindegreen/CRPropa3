@@ -174,7 +174,7 @@ void EMInverseComptonScattering::performInteraction(Candidate *candidate) const 
 	
 	// sample the value of s
 	Random &random = Random::instance();
-	size_t i = closestIndex(E, tabE);
+	size_t i = interpolatedIndex(E, tabE, random.rand()); // one of the two tabulated energies around E
 	size_t j = random.randBin(tabCDF[i]);
 	double s_kin = pow(10, log10(tabs[j]) + (random.rand() - 0.5) * 0.1);
 	double s = s_kin + mec2 * mec2;

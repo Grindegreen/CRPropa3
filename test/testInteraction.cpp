@@ -1440,6 +1440,40 @@ TEST(EMTripletPairProduction, givenInteractionRates) {
 	EXPECT_THROW(EMTripletPairProduction(field, none), std::invalid_argument);
 }
 
+TEST(EMTripletPairProduction, interpolatesBetweenTabulatedEnergies) {
+	// Test if s_kin is drawn from the cumulative rate of the lower or the upper tabulated energy around E with the
+	// probabilities of linear interpolation in ln E (not always from the closest one): rows at 1e15 and 1e16 eV with all
+	// of the rate around s_kin = 1e4 and 1e6 m_e^2 c^4, E = 10^15.25 eV: 25 % from the upper row, recognised by the pair
+	// energy of the module (13 times lower for the bin at 1e6). 4000 interactions: 0.25 +- 0.007 (5 sigma allowed).
+	ref_ptr<PhotonField> field = new BlackbodyPhotonField("EMTPP_interpolation_test", 2.73);
+	ref_ptr<InteractionRatesHomogeneous> rates = new InteractionRatesHomogeneous();
+	const double mec2 = mass_electron * c_squared;
+	std::vector<double> energy = {1e15 * eV, 1e16 * eV};
+	std::vector<double> rate = {2. / Mpc, 2. / Mpc};
+	std::vector<double> s = {1e4 * mec2 * mec2, 1e6 * mec2 * mec2, 1e8 * mec2 * mec2};
+	std::vector<std::vector<double>> cdf = {{1. / Mpc, 1. / Mpc, 1. / Mpc}, {0., 1. / Mpc, 1. / Mpc}};
+	rates->setTabulatedEnergy(energy);
+	rates->setTabulatedRate(rate);
+	rates->setTabulatedE(energy);
+	rates->setTabulateds(s);
+	rates->setTabulatedCDF(cdf);
+	EMTripletPairProduction m(field, rates, true);
+
+	const double E = pow(10, 15.25) * eV;
+	// pair energy of the module at s_kin: E_pp = 0.57 (eps / m_e c^2)^-0.56 (E / m_e c^2)^0.44 m_e c^2, eps = s_kin / 4E;
+	// the boundary between the two bins is at s_kin = 1e5 m_e^2 c^4 (the bins end 0.05 dex from their centres)
+	const double boundary = 5.7e-1 * pow(1e5 * mec2 / 4. / E, -0.56) * pow(E / mec2, 0.44) * mec2;
+	int upper = 0;
+	const int n = 4000;
+	for (int i = 0; i < n; i++) {
+		Candidate c(11, E);
+		m.performInteraction(&c);
+		ASSERT_EQ(c.secondaries.size(), 2);
+		upper += (c.secondaries[0]->current.getEnergy() < boundary);
+	}
+	EXPECT_NEAR(double(upper) / n, 0.25, 5 * 0.0068);
+}
+
 // EMInverseComptonScattering -------------------------------------------------
 TEST(EMInverseComptonScattering, allBackgrounds) {
 	// Test if interaction data files are loaded.

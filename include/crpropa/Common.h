@@ -57,6 +57,16 @@ double interpolateEquidistant(double x, double lo, double hi,
 // Find index of value in a sorted vector X that is closest to x
 size_t closestIndex(double x, const std::vector<double> &X);
 
+/** Index of one of the two tabulation points around x, chosen at random: for X[i] <= x <= X[i+1] the index i + 1 with
+ probability ln(x / X[i]) / ln(X[i+1] / X[i]) and i otherwise, i.e. linear interpolation in ln x between the tabulated
+ distributions (unlike closestIndex(), whose distribution belongs to a point up to half a grid step away). Outside
+ [X.front(), X.back()] the nearest end point.
+ @param x	value; > 0
+ @param X	increasing, positive tabulation points
+ @param u	random number, uniform in [0, 1)
+ */
+size_t interpolatedIndex(double x, const std::vector<double> &X, double u);
+
 // Takes the filename from a full data path. Used in EM* modules.
 std::string splitFilename(const std::string str);
 /** @}*/
