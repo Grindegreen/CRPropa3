@@ -1090,6 +1090,49 @@ TEST(EMPairProduction, secondariesBelowFirstTabulatedS) {
 	}
 }
 
+TEST(EMPairProduction, givenInteractionRates) {
+	// Test if the module uses given interaction rates without loading tables: a field without tables can only be used
+	// this way, the rate is the given one, and s is sampled from the given cumulative rate (here all of it in the bin
+	// s_0 < s <= s_1 = 2 s_min, so every lepton has x = E_lepton / E_photon in [x_0(s_1), 1 - x_0(s_1)], x_0(s_1) = 0.146;
+	// s from the next bin, up to 10 s_min, would give x down to 0.026).
+	ref_ptr<PhotonField> field = new BlackbodyPhotonField("EMPP_given_rates_test", 2.73);
+	EXPECT_THROW(EMPairProduction m(field), std::runtime_error); // no tables for this name
+
+	const double mec2 = mass_electron * c_squared;
+	const double sMin = 4 * mec2 * mec2;
+	ref_ptr<InteractionRatesHomogeneous> rates = new InteractionRatesHomogeneous();
+	std::vector<double> energy = {1e12 * eV, 1e16 * eV};
+	std::vector<double> rate = {2. / Mpc, 2. / Mpc};
+	std::vector<double> s = {1.1 * sMin, 2 * sMin, 10 * sMin};
+	std::vector<std::vector<double>> cdf = {{0, 1. / Mpc, 1. / Mpc}, {0, 1. / Mpc, 1. / Mpc}};
+	rates->setTabulatedEnergy(energy);
+	rates->setTabulatedRate(rate);
+	rates->setTabulatedE(energy);
+	rates->setTabulateds(s);
+	rates->setTabulatedCDF(cdf);
+
+	EMPairProduction m(field, rates, true);
+	EXPECT_EQ(m.getInteractionRates().get(), rates.get());
+	EXPECT_DOUBLE_EQ(m.getRate(1e14 * eV), 2. / Mpc);
+	EXPECT_EQ(m.getDescription(), "EMPairProduction: EMPP_given_rates_test");
+
+	const double E = 1e14 * eV;
+	const double x0 = (1 - sqrt(1 - sMin / s[1])) / 2;
+	for (int i = 0; i < 100; i++) {
+		Candidate c(22, E);
+		m.performInteraction(&c);
+		ASSERT_EQ(c.secondaries.size(), 2);
+		for (size_t k = 0; k < c.secondaries.size(); k++) {
+			double x = c.secondaries[k]->current.getEnergy() / E;
+			EXPECT_GE(x, x0 * (1 - 1e-12));
+			EXPECT_LE(x, (1 - x0) * (1 + 1e-12));
+		}
+	}
+
+	ref_ptr<InteractionRates> none;
+	EXPECT_THROW(EMPairProduction(field, none), std::invalid_argument);
+}
+
 TEST(EMPairProduction, interactionTag) {
 	EMPairProduction m(new CMB());
 

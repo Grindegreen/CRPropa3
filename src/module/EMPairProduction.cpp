@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 #include <cmath>
+#include <stdexcept>
 
 namespace crpropa {
 
@@ -15,6 +16,20 @@ static const double mec2 = mass_electron * c_squared;
 EMPairProduction::EMPairProduction(ref_ptr<PhotonField> photonField, bool haveElectrons, double thinning, double limit, ref_ptr<Surface> surface) {
 	setSurface(surface);
 	setPhotonField(photonField);
+	setThinning(thinning);
+	setLimit(limit);
+	setHaveElectrons(haveElectrons);
+}
+
+EMPairProduction::EMPairProduction(ref_ptr<PhotonField> photonField, ref_ptr<InteractionRates> interactionRates, bool haveElectrons, double thinning, double limit) {
+	if (!photonField)
+		throw std::invalid_argument("EMPairProduction: the photon field must not be null");
+	if (!interactionRates)
+		throw std::invalid_argument("EMPairProduction: the interaction rates must not be null");
+	// as setPhotonField(), but with the given rates instead of tables loaded by the field name
+	this->photonField = photonField;
+	setDescription("EMPairProduction: " + photonField->getFieldName());
+	setInteractionRates(interactionRates);
 	setThinning(thinning);
 	setLimit(limit);
 	setHaveElectrons(haveElectrons);
