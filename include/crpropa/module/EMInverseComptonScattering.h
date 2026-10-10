@@ -45,6 +45,17 @@ public:
 	 @param surface  		Grid will be confined to `surface->distance(pos)<0`, so for example inside a closed surface
 	 */
 	EMInverseComptonScattering(ref_ptr<PhotonField> photonField, bool havePhotons = false, double thinning = 0, double limit = 0.1, ref_ptr<Surface> surface = nullptr);
+
+	/** Constructor with given interaction rates
+	 No tables are loaded: the rates and cumulative rates come from interactionRates, e.g. computed in memory for a photon
+	 field without tabulated rates (setPhotonField() would load tables again).
+	 @param photonField			target photon field; gives the name and the redshift and time scaling
+	 @param interactionRates	rates and cumulative rates of the process for this field; must not be null
+	 @param havePhotons		if true, add secondary photons as candidates
+	 @param thinning			weighted sampling of secondaries (0: all particles are tracked; 1: maximum thinning)
+	 @param limit				step size limit as fraction of mean free path
+	 */
+	EMInverseComptonScattering(ref_ptr<PhotonField> photonField, ref_ptr<InteractionRates> interactionRates, bool havePhotons = false, double thinning = 0, double limit = 0.1);
 	
 	// set the target photon field
 	void setPhotonField(ref_ptr<PhotonField> photonField);

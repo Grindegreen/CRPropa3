@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <cmath>
+#include <stdexcept>
 
 namespace crpropa {
 
@@ -13,6 +14,20 @@ static const double mec2 = mass_electron * c_squared;
 EMInverseComptonScattering::EMInverseComptonScattering(ref_ptr<PhotonField> photonField, bool havePhotons, double thinning, double limit, ref_ptr<Surface> surface) {
 	setSurface(surface);
 	setPhotonField(photonField);
+	setHavePhotons(havePhotons);
+	setLimit(limit);
+	setThinning(thinning);
+}
+
+EMInverseComptonScattering::EMInverseComptonScattering(ref_ptr<PhotonField> photonField, ref_ptr<InteractionRates> interactionRates, bool havePhotons, double thinning, double limit) {
+	if (!photonField)
+		throw std::invalid_argument("EMInverseComptonScattering: the photon field must not be null");
+	if (!interactionRates)
+		throw std::invalid_argument("EMInverseComptonScattering: the interaction rates must not be null");
+	// as setPhotonField(), but with the given rates instead of tables loaded by the field name
+	this->photonField = photonField;
+	setDescription("EMInverseComptonScattering: " + photonField->getFieldName());
+	setInteractionRates(interactionRates);
 	setHavePhotons(havePhotons);
 	setLimit(limit);
 	setThinning(thinning);

@@ -5,12 +5,27 @@
 
 #include <vector>
 #include <cmath>
+#include <stdexcept>
 
 namespace crpropa {
 
 EMDoublePairProduction::EMDoublePairProduction(ref_ptr<PhotonField> photonField, bool haveElectrons, double thinning, double limit, ref_ptr<Surface> surface) {
 	setSurface(surface);
 	setPhotonField(photonField);
+	setHaveElectrons(haveElectrons);
+	setLimit(limit);
+	setThinning(thinning);
+}
+
+EMDoublePairProduction::EMDoublePairProduction(ref_ptr<PhotonField> photonField, ref_ptr<InteractionRates> interactionRates, bool haveElectrons, double thinning, double limit) {
+	if (!photonField)
+		throw std::invalid_argument("EMDoublePairProduction: the photon field must not be null");
+	if (!interactionRates)
+		throw std::invalid_argument("EMDoublePairProduction: the interaction rates must not be null");
+	// as setPhotonField(), but with the given rates instead of tables loaded by the field name
+	this->photonField = photonField;
+	setDescription("EMDoublePairProduction: " + photonField->getFieldName());
+	setInteractionRates(interactionRates);
 	setHaveElectrons(haveElectrons);
 	setLimit(limit);
 	setThinning(thinning);

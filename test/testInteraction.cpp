@@ -1257,6 +1257,31 @@ TEST(EMDoublePairProduction, interactionTag) {
 	EXPECT_TRUE(m.getInteractionTag() == "myTag");
 }
 
+TEST(EMDoublePairProduction, givenInteractionRates) {
+	// Test if the module uses given interaction rates without loading tables: a field without tables can only be used
+	// this way, the rate is the given one, and an interaction absorbs the photon and creates the pair (this module
+	// uses no cumulative rate).
+	ref_ptr<PhotonField> field = new BlackbodyPhotonField("EMDPP_given_rates_test", 2.73);
+	EXPECT_THROW(EMDoublePairProduction m(field), std::runtime_error); // no tables for this name
+	ref_ptr<InteractionRatesHomogeneous> rates = new InteractionRatesHomogeneous();
+	std::vector<double> energy = {1e9 * eV, 1e16 * eV};
+	std::vector<double> rate = {2. / Mpc, 2. / Mpc};
+	rates->setTabulatedEnergy(energy);
+	rates->setTabulatedRate(rate);
+
+	EMDoublePairProduction m(field, rates, true);
+	EXPECT_EQ(m.getInteractionRates().get(), rates.get());
+	EXPECT_DOUBLE_EQ(m.getRate(1e14 * eV), 2. / Mpc);
+	EXPECT_EQ(m.getDescription(), "EMDoublePairProduction: EMDPP_given_rates_test");
+	Candidate c(22, 1e14 * eV);
+	m.performInteraction(&c);
+	EXPECT_FALSE(c.isActive());
+	EXPECT_EQ(c.secondaries.size(), 2);
+
+	ref_ptr<InteractionRates> none;
+	EXPECT_THROW(EMDoublePairProduction(field, none), std::invalid_argument);
+}
+
 // EMTripletPairProduction ----------------------------------------------------
 TEST(EMTripletPairProduction, allBackgrounds) {
 	// Test if interaction data files are loaded.
@@ -1365,6 +1390,50 @@ TEST(EMTripletPairProduction, interactionTag) {
 	EXPECT_TRUE(m.getInteractionTag() == "myTag");
 }
 
+TEST(EMTripletPairProduction, givenInteractionRates) {
+	// Test if the module uses given interaction rates without loading tables, and if s_kin is drawn from the given
+	// cumulative rate: all of it in the bin around s_0 = 1e4 m_e^2 c^4 (the module draws s_kin log-uniformly within
+	// +-0.05 dex of s_0), so the pair energy of the module, E_pp = 0.57 (eps / m_e c^2)^-0.56 (E / m_e c^2)^0.44 m_e c^2
+	// with eps = s_kin / (4 E), lies between its values at s_0 10^0.05 and s_0 10^-0.05 (the other bins are 1e2 and
+	// 1e4 times higher in s_kin).
+	ref_ptr<PhotonField> field = new BlackbodyPhotonField("EMTPP_given_rates_test", 2.73);
+	EXPECT_THROW(EMTripletPairProduction m(field), std::runtime_error); // no tables for this name
+	ref_ptr<InteractionRatesHomogeneous> rates = new InteractionRatesHomogeneous();
+	std::vector<double> energy = {1e9 * eV, 1e16 * eV};
+	std::vector<double> rate = {2. / Mpc, 2. / Mpc};
+	rates->setTabulatedEnergy(energy);
+	rates->setTabulatedRate(rate);
+	const double mec2 = mass_electron * c_squared;
+	std::vector<double> s = {1e4 * mec2 * mec2, 1e6 * mec2 * mec2, 1e8 * mec2 * mec2};
+	std::vector<std::vector<double>> cdf = {{1. / Mpc, 1. / Mpc, 1. / Mpc}, {1. / Mpc, 1. / Mpc, 1. / Mpc}};
+	rates->setTabulatedE(energy);
+	rates->setTabulateds(s);
+	rates->setTabulatedCDF(cdf);
+
+	EMTripletPairProduction m(field, rates, true);
+	EXPECT_EQ(m.getInteractionRates().get(), rates.get());
+	EXPECT_DOUBLE_EQ(m.getRate(1e14 * eV), 2. / Mpc);
+	EXPECT_EQ(m.getDescription(), "EMTripletPairProduction: EMTPP_given_rates_test");
+
+	const double E = 1e15 * eV;
+	auto pairEnergy = [&](double sKin) {
+		return 5.7e-1 * pow(sKin / 4. / E / mec2, -0.56) * pow(E / mec2, 0.44) * mec2;
+	};
+	const double lowest = pairEnergy(s[0] * pow(10, 0.05)), highest = pairEnergy(s[0] * pow(10, -0.05));
+	for (int i = 0; i < 100; i++) {
+		Candidate c(11, E);
+		m.performInteraction(&c);
+		ASSERT_EQ(c.secondaries.size(), 2);
+		for (size_t k = 0; k < c.secondaries.size(); k++) {
+			EXPECT_GE(c.secondaries[k]->current.getEnergy(), lowest * (1 - 1e-12));
+			EXPECT_LE(c.secondaries[k]->current.getEnergy(), highest * (1 + 1e-12));
+		}
+	}
+
+	ref_ptr<InteractionRates> none;
+	EXPECT_THROW(EMTripletPairProduction(field, none), std::invalid_argument);
+}
+
 // EMInverseComptonScattering -------------------------------------------------
 TEST(EMInverseComptonScattering, allBackgrounds) {
 	// Test if interaction data files are loaded.
@@ -1471,6 +1540,43 @@ TEST(EMInverseComptonScattering, interactionTag) {
 	// test custom tag
 	m.setInteractionTag("myTag");
 	EXPECT_TRUE(m.getInteractionTag() == "myTag");
+}
+
+TEST(EMInverseComptonScattering, givenInteractionRates) {
+	// Test if the module uses given interaction rates without loading tables, and if s_kin is drawn from the given
+	// cumulative rate: all of it in the bin around s_0 = 10 m_e^2 c^4 (drawn log-uniformly within +-0.05 dex), so the
+	// electron keeps at least E m_e^2 c^4 / s with s = s_kin + m_e^2 c^4 <= s_0 10^0.05 + m_e^2 c^4 (the other bins are
+	// 1e2 and 1e4 times higher in s_kin and allow much lower energies).
+	ref_ptr<PhotonField> field = new BlackbodyPhotonField("EMICS_given_rates_test", 2.73);
+	EXPECT_THROW(EMInverseComptonScattering m(field), std::runtime_error); // no tables for this name
+	ref_ptr<InteractionRatesHomogeneous> rates = new InteractionRatesHomogeneous();
+	std::vector<double> energy = {1e9 * eV, 1e16 * eV};
+	std::vector<double> rate = {2. / Mpc, 2. / Mpc};
+	rates->setTabulatedEnergy(energy);
+	rates->setTabulatedRate(rate);
+	const double mec2 = mass_electron * c_squared;
+	std::vector<double> s = {10 * mec2 * mec2, 1e3 * mec2 * mec2, 1e5 * mec2 * mec2};
+	std::vector<std::vector<double>> cdf = {{1. / Mpc, 1. / Mpc, 1. / Mpc}, {1. / Mpc, 1. / Mpc, 1. / Mpc}};
+	rates->setTabulatedE(energy);
+	rates->setTabulateds(s);
+	rates->setTabulatedCDF(cdf);
+
+	EMInverseComptonScattering m(field, rates, true);
+	EXPECT_EQ(m.getInteractionRates().get(), rates.get());
+	EXPECT_DOUBLE_EQ(m.getRate(1e14 * eV), 2. / Mpc);
+	EXPECT_EQ(m.getDescription(), "EMInverseComptonScattering: EMICS_given_rates_test");
+
+	const double E = 1e12 * eV;
+	const double lowest = E * mec2 * mec2 / (s[0] * pow(10, 0.05) + mec2 * mec2);
+	for (int i = 0; i < 1000; i++) {
+		Candidate c(11, E);
+		m.performInteraction(&c);
+		EXPECT_GE(c.current.getEnergy(), lowest * (1 - 1e-12));
+		EXPECT_LE(c.current.getEnergy(), E);
+	}
+
+	ref_ptr<InteractionRates> none;
+	EXPECT_THROW(EMInverseComptonScattering(field, none), std::invalid_argument);
 }
 
 // SynchrotronRadiation -------------------------------------------------
