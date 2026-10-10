@@ -16,6 +16,7 @@
 #include "gtest/gtest.h"
 #include "kiss/path.h"
 
+#include <cfloat>
 #include <fstream>
 
 namespace crpropa {
@@ -1046,24 +1047,29 @@ TEST(EMPairProduction, secondaries) {
 }
 
 TEST(EMPairProduction, secondariesEnergyDistributionRange) {
-	// Test if the lepton energy is sampled in the whole tabulated range of s, from s_min = (2 m_e c^2)^2 to
-	// s_max = 1e23 eV^2 including the top bin (0.975 s_max <= s <= s_max), and if s outside gives NaN.
+	// Test if the lepton energy is sampled in the whole tabulated range of s, from s_min = (2 m_e c^2)^2 across the
+	// former end of the table (1e23 eV^2) to s_max >= 1e30 eV^2, within the kinematic bounds
+	// x_0 <= E_lepton / E <= 1 - x_0, x_0 = (1 - beta) / 2 (computed as r / (1 + beta) / 2, r = s_min / s), and if s
+	// outside gives NaN. (Before, s >= 0.975e23 eV^2 read past the table.) The softer lepton is computed without
+	// cancellation, so the lower bound holds relative to x_0 also for s >> s_min (x_0 = 2.6e-18 at 1e29 eV^2; computed
+	// as a difference, 1 - x came out negative already at 1e26 eV^2).
 	PPSecondariesEnergyDistribution distribution;
 	const double mec2 = mass_electron * c_squared;
 	const double sMin = 4 * mec2 * mec2;
-	const double sMax = 1e23 * eV * eV;
 	const double E = 1e23 * eV;
-	const double s[] = {sMin, 2 * sMin, 1e20 * eV * eV, 0.98 * sMax, 0.9999 * sMax, sMax};
+	const double s[] = {sMin, 2 * sMin, 1e20 * eV * eV, 0.98e23 * eV * eV, 1e23 * eV * eV, 1.0001e23 * eV * eV,
+			1e26 * eV * eV, 1e29 * eV * eV, 0.999e30 * eV * eV, 1e30 * eV * eV};
 	for (double si : s) {
+		const double r = sMin / si, beta = sqrt(1 - r), x0 = r / (1 + beta) / 2;
 		for (int k = 0; k < 100; k++) {
 			double Ee = distribution.sample(E, si);
-			EXPECT_TRUE(std::isfinite(Ee));
-			EXPECT_GT(Ee, 0);
-			EXPECT_LT(Ee, E);
+			EXPECT_TRUE(std::isfinite(Ee)) << "s = " << si / eV / eV;
+			EXPECT_GE(Ee, E * x0 * (1 - 1e-12)) << "s = " << si / eV / eV;
+			EXPECT_LE(Ee, E * (1 - x0) + 4 * E * DBL_EPSILON) << "s = " << si / eV / eV;
 		}
 	}
 	EXPECT_TRUE(std::isnan(distribution.sample(E, 0.5 * sMin)));
-	EXPECT_TRUE(std::isnan(distribution.sample(E, 1.01 * sMax)));
+	EXPECT_TRUE(std::isnan(distribution.sample(E, 2e30 * eV * eV)));
 }
 
 TEST(EMPairProduction, secondariesBelowFirstTabulatedS) {
@@ -1540,6 +1546,27 @@ TEST(EMInverseComptonScattering, interactionTag) {
 	// test custom tag
 	m.setInteractionTag("myTag");
 	EXPECT_TRUE(m.getInteractionTag() == "myTag");
+}
+
+TEST(EMInverseComptonScattering, secondariesEnergyDistributionRange) {
+	// Test if the electron energy after the scattering is sampled for s from s_min = m_e^2 c^4 across the former end
+	// of the table (2e23 eV^2) to s_max >= 1e30 eV^2 and above (last bin), within the kinematic bounds
+	// E s_min / s <= E' <= E. (Before, s >= 0.975 x 2e23 eV^2 read past the table, and above s / s_min = 2^53
+	// beta = 1 gave x_0 = 0.)
+	ICSSecondariesEnergyDistribution distribution;
+	const double mec2 = mass_electron * c_squared;
+	const double sMin = mec2 * mec2;
+	const double E = 1e20 * eV;
+	const double s[] = {sMin, 1.5 * sMin, 1e15 * eV * eV, 1.96e23 * eV * eV, 2e23 * eV * eV, 2.0001e23 * eV * eV,
+			1e28 * eV * eV, 0.999e30 * eV * eV, 1e30 * eV * eV, 1e31 * eV * eV};
+	for (double si : s) {
+		for (int k = 0; k < 100; k++) {
+			double Enew = distribution.sample(E, si);
+			EXPECT_TRUE(std::isfinite(Enew)) << "s = " << si / eV / eV;
+			EXPECT_GE(Enew, E * sMin / si * (1 - 1e-12)) << "s = " << si / eV / eV;
+			EXPECT_LE(Enew, E) << "s = " << si / eV / eV;
+		}
+	}
 }
 
 TEST(EMInverseComptonScattering, givenInteractionRates) {

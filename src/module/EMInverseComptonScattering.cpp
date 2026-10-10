@@ -3,6 +3,7 @@
 #include "crpropa/Random.h"
 #include "crpropa/Common.h"
 
+#include <algorithm>
 #include <vector>
 #include <cmath>
 #include <stdexcept>
@@ -89,73 +90,66 @@ void EMInverseComptonScattering::initCumulativeRate(std::string path) {
 	this->interactionRates->initCumulativeRate(path);
 }
 
-// Class to calculate the energy distribution of the ICS photon and to sample from it
-class ICSSecondariesEnergyDistribution {
-	private:
-		std::vector< std::vector<double> > data;
-		std::vector<double> s_values;
-		size_t Ns;
-		size_t Nrer;
-		double s_min;
-		double s_max;
-		double dls;
+// Energy distribution of the electron after the scattering, and sampling from it
+ICSSecondariesEnergyDistribution::ICSSecondariesEnergyDistribution() {
+	Nrer = 1000;
+	s_min = mec2 * mec2;
+	// bins of the original table (1000 bins from s_min to 2e23 eV^2), continued up to at least 1e30 eV^2, so that
+	// the bins below 2e23 eV^2 are unchanged
+	const double dls = (log(2e23 * eV * eV) - log(s_min)) / 1000;
+	Ns = static_cast<size_t>(std::ceil(log(1e30 * eV * eV / s_min) / dls));
+	data = std::vector< std::vector<double> >(Ns, std::vector<double>(Nrer));
+	std::vector<double> data_i(Nrer);
 
-	public:
-		// differential cross-section, see Lee '96 (arXiv:9604098), eq. 23 for x = Ee'/Ee
-		double dSigmadE(double x, double beta) {
-			double q = ((1 - beta) / beta) * (1 - 1./x);
-			return ((1 + beta) / beta) * (x + 1./x + 2 * q + q * q);
+	// tabulate s bin borders
+	s_values = std::vector<double>(Ns + 1);
+	for (size_t i = 0; i < Ns + 1; ++i)
+		s_values[i] = s_min * exp(i*dls);
+
+	// for each s tabulate cumulative differential cross section
+	for (size_t i = 0; i < Ns; i++) {
+		// r = s_min / s at the bin centre; x0 = (1 - beta) / (1 + beta) = r exactly
+		double r = exp(-(i + 0.5) * dls);
+		double x0 = r;
+		double dlx = -log(x0) / Nrer;
+
+		// cumulative midpoint integration
+		data_i[0] = differentialCrossSection(x0, r) * expm1(dlx);
+		for (size_t j = 1; j < Nrer; j++) {
+			double x = x0 * exp((j+0.5) * dlx);
+			double dx = exp((j+1) * dlx) - exp(j * dlx);
+			data_i[j] = differentialCrossSection(x, r) * dx;
+			data_i[j] += data_i[j-1];
 		}
+		data[i] = data_i;
+	}
+}
 
-		// create the cumulative energy distribution of the up-scattered photon
-		ICSSecondariesEnergyDistribution() {
-			Ns = 1000;
-			Nrer = 1000;
-			s_min = mec2 * mec2;
-			s_max = 2e23 * eV * eV;
-			dls = (log(s_max) - log(s_min)) / Ns;
-			data = std::vector< std::vector<double> >(1000, std::vector<double>(1000));
-			std::vector<double> data_i(1000);
+// differential cross-section, see Lee '96 (arXiv:9604098), eq. 23 for x = Ee'/Ee
+double ICSSecondariesEnergyDistribution::dSigmadE(double x, double beta) {
+	return differentialCrossSection(x, (1 - beta) / (1 + beta));
+}
 
-			// tabulate s bin borders
-			s_values = std::vector<double>(1001);
-			for (size_t i = 0; i < Ns + 1; ++i)
-				s_values[i] = s_min * exp(i*dls);
+double ICSSecondariesEnergyDistribution::differentialCrossSection(double x, double r) const {
+	// with beta = (1 - r) / (1 + r): (1 - beta) / beta = 2 r / (1 - r) and (1 + beta) / beta = 2 / (1 - r)
+	double q = (2 * r / (1 - r)) * (1 - 1./x);
+	return (2 / (1 - r)) * (x + 1./x + 2 * q + q * q);
+}
 
-
-			// for each s tabulate cumulative differential cross section
-			for (size_t i = 0; i < Ns; i++) {
-				double s = s_min * exp((i+0.5) * dls);
-				double beta = (s - s_min) / (s + s_min);
-				double x0 = (1 - beta) / (1 + beta);
-				double dlx = -log(x0) / Nrer;
-
-				// cumulative midpoint integration
-				data_i[0] = dSigmadE(x0, beta) * expm1(dlx);
-				for (size_t j = 1; j < Nrer; j++) {
-					double x = x0 * exp((j+0.5) * dlx);
-					double dx = exp((j+1) * dlx) - exp(j * dlx);
-					data_i[j] = dSigmadE(x, beta) * dx;
-					data_i[j] += data_i[j-1];
-				}
-				data[i] = data_i;
-			}
-		}
-
-		// draw random energy for the up-scattered photon Ep(Ee, s)
-		double sample(double Ee, double s) {
-			size_t idx = std::lower_bound(s_values.begin(), s_values.end(), s) - s_values.begin();
-			std::vector<double> s0 = data[idx];
-			Random &random = Random::instance();
-			size_t j = random.randBin(s0) + 1; // draw random bin (upper bin boundary returned)
-			double beta = (s - s_min) / (s + s_min);
-			double x0 = (1 - beta) / (1 + beta);
-			double dlx = -log(x0) / Nrer;
-			double binWidth = x0 * (exp(j * dlx) - exp((j-1) * dlx));
-			double Ep = (x0 * exp((j-1) * dlx) + binWidth) * Ee;
-			return std::min(Ee, Ep); // prevent Ep > Ee from numerical inaccuracies
-		}
-};
+// draw random energy of the electron after the scattering, Ee'(Ee, s)
+double ICSSecondariesEnergyDistribution::sample(double Ee, double s) {
+	// bin idx holds s_values[idx] <= s < s_values[idx + 1]; below s_min the first bin, above s_max the last one
+	size_t idx = std::upper_bound(s_values.begin(), s_values.end(), s) - s_values.begin();
+	idx = (idx == 0) ? 0 : std::min(idx - 1, data.size() - 1);
+	std::vector<double> s0 = data[idx];
+	Random &random = Random::instance();
+	size_t j = random.randBin(s0) + 1; // draw random bin (upper bin boundary returned)
+	double x0 = std::min(1., s_min / s); // (1 - beta) / (1 + beta)
+	double dlx = -log(x0) / Nrer;
+	double binWidth = x0 * (exp(j * dlx) - exp((j-1) * dlx));
+	double Ep = (x0 * exp((j-1) * dlx) + binWidth) * Ee;
+	return std::min(Ee, Ep); // prevent Ep > Ee from numerical inaccuracies
+}
 
 double EMInverseComptonScattering::getRate(double E, const Vector3d &position, double z) const {
 	return this->interactionRates->getProcessRate(E, position) * pow_integer<2>(1 + z) * photonField->getRedshiftScaling(z);

@@ -2,6 +2,7 @@
 #define CRPROPA_EMINVERSECOMPTONSCATTERING_H
 
 #include <string>
+#include <vector>
 
 #include "crpropa/Module.h"
 #include "crpropa/PhotonBackground.h"
@@ -119,6 +120,38 @@ public:
 
 	void process(Candidate *candidate) const;
 	void performInteraction(Candidate *candidate) const;
+};
+
+/**
+ @class ICSSecondariesEnergyDistribution
+ @brief Energy distribution of the electron after inverse Compton scattering, used by EMInverseComptonScattering.
+
+ Holds the cumulative differential cross section in x = E_electron' / E_electron (Nrer = 1000 bins, log-spaced from
+ x_0 = m_e^2 c^4 / s to 1) for bins in the squared center-of-mass energy s, log-spaced from s_min = m_e^2 c^4 with
+ the width of 1000 bins up to 2e23 eV^2, continued up to at least s_max = 1e30 eV^2. The kinematics are computed
+ from r = s_min / s (x_0 = r, beta = (1 - r) / (1 + r)) without cancellation, so the table holds also for s >> s_min.
+ */
+class ICSSecondariesEnergyDistribution {
+private:
+	std::vector< std::vector<double> > data;	// cumulative distribution in x for each bin in s
+	std::vector<double> s_values;				// bin borders in s (Ns + 1 values)
+	size_t Ns;									// number of bins in s
+	size_t Nrer;								// number of bins in x
+	double s_min;								// m_e^2 c^4
+	/** dsigma/dx without the prefactor, for r = s_min / s (exact also for s >> s_min) */
+	double differentialCrossSection(double x, double r) const;
+public:
+	ICSSecondariesEnergyDistribution();
+
+	/** Differential cross-section, see Lee '96 (arXiv:9604098), eq. 23 for x = Ee'/Ee */
+	double dSigmadE(double x, double beta);
+
+	/** Sample the energy of the electron after the scattering.
+	 @param Ee	energy of the electron before the scattering
+	 @param s	squared center-of-mass energy; s >= s_min (s above s_max uses the distribution of the last bin)
+	 @returns	energy of the electron after the scattering, between Ee s_min / s and Ee
+	 */
+	double sample(double Ee, double s);
 };
 /** @}*/
 

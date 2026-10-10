@@ -128,24 +128,36 @@ public:
  @class PPSecondariesEnergyDistribution
  @brief Energy distribution of the electron and positron from pair production, used by EMPairProduction.
 
- Holds the cumulative differential cross section in x = E_positron / E_photon (N = 1000 bins) for Ns = 1000 bins in
- the squared center-of-mass energy s, log-spaced from s_min = (2 m_e c^2)^2 to s_max = 1e23 eV^2.
+ Holds the cumulative differential cross section in x = E_positron / E_photon (N = 1000 bins) for bins in the
+ squared center-of-mass energy s, log-spaced from s_min = (2 m_e c^2)^2 with the width of 1000 bins up to 1e23 eV^2,
+ continued up to at least s_max = 1e30 eV^2 (1638 bins). Beta and the bounds of x are computed from s_min / s without
+ cancellation, so the table holds also for s >> s_min.
  */
 class PPSecondariesEnergyDistribution {
 private:
 	std::vector<double> tab_s;					// bin borders in s (Ns + 1 values)
 	std::vector< std::vector<double> > data;	// cumulative distribution in x for each bin in s
 	size_t N;									// number of bins in x
+	/** dsigma/dx without the prefactor, for y = 1 - beta^2 = s_min / s (exact also for s >> s_min) */
+	double differentialCrossSection(double x, double y) const;
 public:
 	PPSecondariesEnergyDistribution();
 
 	/** Differential cross section for x = E_positron / E_photon, compare Lee 96 arXiv:9604098 */
 	double dSigmadE_PPx(double x, double beta);
 
+	/** Sample the energy fraction of the softer lepton of the pair, min(x, 1 - x) of x = E_positron / E_photon
+	 (the distribution is symmetric in x and 1 - x). Computed without cancellation: 1 - x as
+	 x0 + (1 - x0) (1 - exp(-(N - j) dx)), since the upper edge of the last bin in x is 1 - x0.
+	 @param s	squared center-of-mass energy
+	 @returns	fraction in [x0, 1/2]; NaN for s outside the tabulated range [s_min, s_max]
+	 */
+	double sampleSoftFraction(double s);
+
 	/** Sample the energy of one lepton of the pair (positron or electron at random).
 	 @param E0	energy of the photon
 	 @param s	squared center-of-mass energy
-	 @returns	energy of the lepton; NaN for s outside the tabulated range
+	 @returns	energy of the lepton; NaN for s outside the tabulated range [s_min, s_max]
 	 */
 	double sample(double E0, double s);
 };

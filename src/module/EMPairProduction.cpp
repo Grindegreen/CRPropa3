@@ -91,70 +91,84 @@ void EMPairProduction::initCumulativeRate(std::string path) {
 	this->interactionRates->initCumulativeRate(path);
 }
 
-// differential cross section for pair production for x = Epositron/Egamma, compare Lee 96 arXiv:9604098
-double PPSecondariesEnergyDistribution::dSigmadE_PPx(double x, double beta) {
-	double A = (x / (1. - x) + (1. - x) / x );
-	double B =  (1. / x + 1. / (1. - x) );
-	double y = (1 - beta * beta);
-	return A + y * B - y * y / 4 * B * B;
-}
-
 // Hold an data array to interpolate the energy distribution on
 PPSecondariesEnergyDistribution::PPSecondariesEnergyDistribution() {
 	N = 1000;
-	size_t Ns = 1000;
-	double s_min = 4 * mec2 * mec2;
-	double s_max = 1e23 * eV * eV;
-	double dls = log(s_max / s_min) / Ns;
+	const double s_min = 4 * mec2 * mec2;
+	// bins of the original table (1000 bins from s_min to 1e23 eV^2), continued up to at least 1e30 eV^2, so that the
+	// bins below 1e23 eV^2 are unchanged
+	const double dls = log(1e23 * eV * eV / s_min) / 1000;
+	const size_t Ns = static_cast<size_t>(std::ceil(log(1e30 * eV * eV / s_min) / dls));
 	data = std::vector< std::vector<double> >(Ns, std::vector<double>(N));
 	tab_s = std::vector<double>(Ns + 1);
 	
 	for (size_t i = 0; i < Ns + 1; ++i)
 		tab_s[i] = s_min * exp(i*dls); // tabulate s bin borders
-	tab_s[Ns] = s_max; // exact upper border (exp may round it)
 	
 	for (size_t i = 0; i < Ns; i++) {
-		double s = s_min * exp(i*dls + 0.5*dls);
-		double beta = sqrt(1 - s_min/s);
-		double x0 = (1 - beta) / 2;
-		double dx = log((1 + beta) / (1 - beta)) / N;
+		// with r = s_min / s exactly: beta^2 = 1 - r, 1 - beta = r / (1 + beta) (no cancellation for s >> s_min)
+		double r = exp(-(i + 0.5) * dls);
+		double beta = sqrt(1 - r);
+		double x0 = r / (1 + beta) / 2; // (1 - beta) / 2
+		double dx = (2 * log1p(beta) - log(r)) / N; // ln((1 + beta) / (1 - beta)) / N
 		
 		// cumulative midpoint integration
-		std::vector<double> data_i(1000);
-		data_i[0] = dSigmadE_PPx(x0, beta) * expm1(dx);
+		std::vector<double> data_i(N);
+		data_i[0] = differentialCrossSection(x0, r) * expm1(dx);
 		for (size_t j = 1; j < N; j++) {
 			double x = x0 * exp(j*dx + 0.5*dx);
 			double binWidth = exp((j+1)*dx)-exp(j*dx);
-			data_i[j] = dSigmadE_PPx(x, beta) * binWidth + data_i[j-1];
+			data_i[j] = differentialCrossSection(x, r) * binWidth + data_i[j-1];
 		}
 		data[i] = data_i;
 	}
 }
 
-// sample positron energy from cdf(E, s_kin)
-double PPSecondariesEnergyDistribution::sample(double E0, double s) {
-	// get distribution for given s: bin idx holds tab_s[idx] <= s < tab_s[idx + 1], and s = s_max the last bin
-	// (data has one bin less than tab_s has borders)
+// differential cross section for pair production for x = Epositron/Egamma, compare Lee 96 arXiv:9604098
+double PPSecondariesEnergyDistribution::dSigmadE_PPx(double x, double beta) {
+	return differentialCrossSection(x, 1 - beta * beta);
+}
+
+double PPSecondariesEnergyDistribution::differentialCrossSection(double x, double y) const {
+	// y = 1 - beta^2 = s_min / s
+	double A = (x / (1. - x) + (1. - x) / x );
+	double B =  (1. / x + 1. / (1. - x) );
+	return A + y * B - y * y / 4 * B * B;
+}
+
+// sample the energy fraction of the softer lepton from cdf(s)
+double PPSecondariesEnergyDistribution::sampleSoftFraction(double s) {
+	// get distribution for given s: bin idx holds tab_s[idx] <= s < tab_s[idx + 1], and s at the upper end the last
+	// bin (data has one bin less than tab_s has borders)
 	if (!(s >= tab_s.front() && s <= tab_s.back()))
 		return NAN;
 	size_t idx = std::upper_bound(tab_s.begin(), tab_s.end(), s) - tab_s.begin() - 1;
 	idx = std::min(idx, data.size() - 1);
-
+	
 	std::vector<double> s0 = data[idx];
 	
-	// draw random bin
+	// draw random bin; x = x0 exp(j dx) is its upper edge (j = N: x = 1 - x0)
 	Random &random = Random::instance();
 	size_t j = random.randBin(s0) + 1;
 	
-	double s_min = 4. * mec2 * mec2;
-	double beta = sqrtl(1. - s_min / s);
-	double x0 = (1. - beta) / 2.;
-	double dx = log((1 + beta) / (1 - beta)) / N;
-	double binWidth = x0 * (exp(j*dx) - exp((j-1)*dx));
-	if (random.rand() < 0.5)
-		return E0 * (x0 * exp((j-1) * dx) + binWidth);
-	else
-		return E0 * (1 - (x0 * exp((j-1) * dx) + binWidth));
+	// with r = s_min / s exactly, as in the constructor
+	double r = 4. * mec2 * mec2 / s;
+	double beta = sqrt(1. - r);
+	double x0 = r / (1. + beta) / 2.;
+	double dx = (2. * log1p(beta) - log(r)) / N;
+	double x = x0 * exp(j * dx);
+	// 1 - x without cancellation: x0 exp(N dx) = 1 - x0, so 1 - x = x0 + (1 - x0) (1 - exp(-(N - j) dx))
+	double oneMinusX = x0 - (1. - x0) * expm1(-double(N - j) * dx);
+	return std::min(x, oneMinusX);
+}
+
+// sample the energy of one lepton (positron or electron at random)
+double PPSecondariesEnergyDistribution::sample(double E0, double s) {
+	double soft = sampleSoftFraction(s);
+	if (!std::isfinite(soft))
+		return NAN;
+	// the distribution is symmetric in x and 1 - x: the softer or the harder lepton with equal probability
+	return (Random::instance().rand() < 0.5) ? E0 * soft : E0 * (1. - soft);
 }
 
 double EMPairProduction::getRate(double E, const Vector3d &position, double z) const {
@@ -200,13 +214,21 @@ void EMPairProduction::performInteraction(Candidate *candidate) const {
 	double hi = std::max(lo, tabs[j]);
 	double s = lo + random.rand() * (hi - lo);
 	
-	// sample electron / positron energy
+	// sample electron / positron energy: the softer lepton (fraction computed without cancellation) is the electron
+	// or the positron with equal probability, the harder one gets the rest (no cancellation, energy conserved)
 	static PPSecondariesEnergyDistribution interpolation;
-	double Ee = interpolation.sample(E, s);
-	double Ep = E - Ee;
+	double soft = interpolation.sampleSoftFraction(s);
+	double Ee, Ep;
+	if (random.rand() < 0.5) {
+		Ee = E * soft;
+		Ep = E - Ee;
+	} else {
+		Ep = E * soft;
+		Ee = E - Ep;
+	}
 	double f = Ep / E;
 	
-	// for some backgrounds Ee=nan due to precision limitations.
+	// s outside the tabulated range of the energy distribution gives NaN
 	if (not std::isfinite(Ee) || not std::isfinite(Ep)) {
 		KISS_LOG_WARNING
 			<< "EMPairProduction: Sampled energies are not finite for primary energy "
